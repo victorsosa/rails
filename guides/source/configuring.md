@@ -345,6 +345,8 @@ The schema dumper adds one additional configuration option:
 
 * `config.action_controller.forgery_protection_origin_check` configures whether the HTTP `Origin` header should be checked against the site's origin as an additional CSRF defense.
 
+* `config.action_controller.per_form_csrf_tokens` configures whether CSRF tokens are only valid for the method/action they were generated for.
+
 * `config.action_controller.relative_url_root` can be used to tell Rails that you are [deploying to a subdirectory](configuring.html#deploy-to-a-subdirectory-relative-url-root). The default is `ENV['RAILS_RELATIVE_URL_ROOT']`.
 
 * `config.action_controller.permit_all_parameters` sets all the parameters for mass assignment to be permitted by default. The default value is `false`.
@@ -1117,21 +1119,48 @@ NOTE. If you are running in a multi-threaded environment, there could be a chanc
 Custom configuration
 --------------------
 
-You can configure your own code through the Rails configuration object with custom configuration under the `config.x` property. It works like this:
+You can configure your own code through the Rails configuration object with custom configuration. It works like this:
 
   ```ruby
-  config.x.payment_processing.schedule = :daily
-  config.x.payment_processing.retries  = 3
-  config.x.super_debugger = true
+  config.payment_processing.schedule = :daily
+  config.payment_processing.retries  = 3
+  config.super_debugger = true
   ```
 
 These configuration points are then available through the configuration object:
 
   ```ruby
-  Rails.configuration.x.payment_processing.schedule # => :daily
-  Rails.configuration.x.payment_processing.retries  # => 3
-  Rails.configuration.x.super_debugger              # => true
-  Rails.configuration.x.super_debugger.not_set      # => nil
+  Rails.configuration.payment_processing.schedule # => :daily
+  Rails.configuration.payment_processing.retries  # => 3
+  Rails.configuration.super_debugger              # => true
+  Rails.configuration.super_debugger.not_set      # => nil
+  ```
+
+You can also use `Rails::Application.config_for` to load whole configuration files:
+
+  ```ruby
+  # config/payment.yml:
+  production:
+    environment: production
+    merchant_id: production_merchant_id
+    public_key:  production_public_key
+    private_key: production_private_key
+  development:
+    environment: sandbox
+    merchant_id: development_merchant_id
+    public_key:  development_public_key
+    private_key: development_private_key
+
+  # config/application.rb
+  module MyApp
+    class Application < Rails::Application
+      config.payment = config_for(:payment)
+    end
+  end
+  ```
+
+  ```ruby
+  Rails.configuration.payment['merchant_id'] # => production_merchant_id or development_merchant_id
   ```
 
 Search Engines Indexing

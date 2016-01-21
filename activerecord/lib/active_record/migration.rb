@@ -143,6 +143,40 @@ module ActiveRecord
     end
   end
 
+  class NoEnvironmentInSchemaError < MigrationError #:nodoc:
+    def initialize
+      msg = "Environment data not found in the schema. To resolve this issue, run: \n\n\tbin/rails db:environment:set"
+      if defined?(Rails.env)
+        super("#{msg} RAILS_ENV=#{::Rails.env}")
+      else
+        super(msg)
+      end
+    end
+  end
+
+  class ProtectedEnvironmentError < ActiveRecordError #:nodoc:
+    def initialize(env = "production")
+      msg = "You are attempting to run a destructive action against your '#{env}' database\n"
+      msg << "If you are sure you want to continue, run the same command with the environment variable\n"
+      msg << "DISABLE_DATABASE_ENVIRONMENT_CHECK=1"
+      super(msg)
+    end
+  end
+
+  class EnvironmentMismatchError < ActiveRecordError
+    def initialize(current: nil, stored: nil)
+      msg =  "You are attempting to modify a database that was last run in `#{ stored }` environment.\n"
+      msg << "You are running in `#{ current }` environment."
+      msg << "If you are sure you want to continue, first set the environment using:\n\n"
+      msg << "\tbin/rails db:environment:set"
+      if defined?(Rails.env)
+        super("#{msg} RAILS_ENV=#{::Rails.env}")
+      else
+        super(msg)
+      end
+    end
+  end
+
   # = Active Record Migrations
   #
   # Migrations can manage the evolution of a schema used by several physical
@@ -1078,6 +1112,7 @@ module ActiveRecord
       validate(@migrations)
 
       Base.connection.initialize_schema_migrations_table
+      Base.connection.initialize_internal_metadata_table
     end
 
     def current_version
@@ -1135,45 +1170,58 @@ module ActiveRecord
 
     private
 
+    # Used for running a specific migration.
     def run_without_lock
       migration = migrations.detect { |m| m.version == @target_version }
       raise UnknownMigrationVersionError.new(@target_version) if migration.nil?
-      unless (up? && migrated.include?(migration.version.to_i)) || (down? && !migrated.include?(migration.version.to_i))
-        begin
-          execute_migration_in_transaction(migration, @direction)
-        rescue => e
-          canceled_msg = use_transaction?(migration) ? ", this migration was canceled" : ""
-          raise StandardError, "An error has occurred#{canceled_msg}:\n\n#{e}", e.backtrace
-        end
-      end
+      execute_migration_in_transaction(migration, @direction)
+
+      record_environment
     end
 
+    # Used for running multiple migrations up to or down to a certain value.
     def migrate_without_lock
-      if !target && @target_version && @target_version > 0
+      if invalid_target?
         raise UnknownMigrationVersionError.new(@target_version)
       end
 
       runnable.each do |migration|
-        Base.logger.info "Migrating to #{migration.name} (#{migration.version})" if Base.logger
-
-        begin
-          execute_migration_in_transaction(migration, @direction)
-        rescue => e
-          canceled_msg = use_transaction?(migration) ? "this and " : ""
-          raise StandardError, "An error has occurred, #{canceled_msg}all later migrations canceled:\n\n#{e}", e.backtrace
-        end
+        execute_migration_in_transaction(migration, @direction)
       end
+
+      record_environment
+    end
+
+    # Stores the current environment in the database.
+    def record_environment
+      return if down?
+      ActiveRecord::InternalMetadata[:environment] = ActiveRecord::Migrator.current_environment
     end
 
     def ran?(migration)
       migrated.include?(migration.version.to_i)
     end
 
+    # Return true if a valid version is not provided.
+    def invalid_target?
+      !target && @target_version && @target_version > 0
+    end
+
     def execute_migration_in_transaction(migration, direction)
+      return if down? && !migrated.include?(migration.version.to_i)
+      return if up?   &&  migrated.include?(migration.version.to_i)
+
+      Base.logger.info "Migrating to #{migration.name} (#{migration.version})" if Base.logger
+
       ddl_transaction(migration) do
         migration.migrate(direction)
         record_version_state_after_migrating(migration.version)
       end
+    rescue => e
+      msg = "An error has occurred, "
+      msg << "this and " if use_transaction?(migration)
+      msg << "all later migrations canceled:\n\n#{e}"
+      raise StandardError, msg, e.backtrace
     end
 
     def target
@@ -1202,8 +1250,25 @@ module ActiveRecord
         ActiveRecord::SchemaMigration.where(:version => version.to_s).delete_all
       else
         migrated << version
-        ActiveRecord::SchemaMigration.create!(:version => version.to_s)
+        ActiveRecord::SchemaMigration.create!(version: version.to_s)
       end
+    end
+
+    def self.last_stored_environment
+      return nil if current_version == 0
+      raise NoEnvironmentInSchemaError unless ActiveRecord::InternalMetadata.table_exists?
+
+      environment = ActiveRecord::InternalMetadata[:environment]
+      raise NoEnvironmentInSchemaError unless environment
+      environment
+    end
+
+    def self.current_environment
+      ActiveRecord::ConnectionHandling::DEFAULT_ENV.call
+    end
+
+    def self.protected_environment?
+      ActiveRecord::Base.protected_environments.include?(last_stored_environment) if last_stored_environment
     end
 
     def up?

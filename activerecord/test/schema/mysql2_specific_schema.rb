@@ -1,18 +1,25 @@
 ActiveRecord::Schema.define do
+
+  if ActiveRecord::Base.connection.version >= '5.6.0'
+    create_table :datetime_defaults, force: true do |t|
+      t.datetime :modified_datetime, default: -> { 'CURRENT_TIMESTAMP' }
+    end
+  end
+
   create_table :binary_fields, force: true do |t|
     t.binary :var_binary, limit: 255
     t.binary :var_binary_large, limit: 4095
-    t.blob   :tiny_blob, limit: 255
-    t.binary :normal_blob, limit: 65535
-    t.binary :medium_blob, limit: 16777215
-    t.binary :long_blob, limit: 2147483647
-    t.text   :tiny_text, limit: 255
-    t.text   :normal_text, limit: 65535
-    t.text   :medium_text, limit: 16777215
-    t.text   :long_text, limit: 2147483647
-  end
+    t.tinyblob   :tiny_blob
+    t.blob       :normal_blob
+    t.mediumblob :medium_blob
+    t.longblob   :long_blob
+    t.tinytext   :tiny_text
+    t.text       :normal_text
+    t.mediumtext :medium_text
+    t.longtext   :long_text
 
-  add_index :binary_fields, :var_binary
+    t.index :var_binary
+  end
 
   create_table :key_tests, force: true, :options => 'ENGINE=MyISAM' do |t|
     t.string :awesome
@@ -55,7 +62,7 @@ SQL
 
   ActiveRecord::Base.connection.execute <<-SQL
 CREATE TABLE enum_tests (
-  enum_column ENUM('text','blob','tiny','medium','long')
+  enum_column ENUM('text','blob','tiny','medium','long','unsigned')
 )
 SQL
 end

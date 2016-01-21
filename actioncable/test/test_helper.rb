@@ -5,7 +5,6 @@ require 'active_support/testing/autorun'
 
 
 require 'puma'
-require 'em-hiredis'
 
 require 'mocha/setup'
 
@@ -13,11 +12,6 @@ require 'rack/mock'
 
 # Require all the stubs and models
 Dir[File.dirname(__FILE__) + '/stubs/*.rb'].each {|file| require file }
-
-$CELLULOID_DEBUG = false
-$CELLULOID_TEST  = false
-require 'celluloid'
-Celluloid.logger = Logger.new(StringIO.new)
 
 require 'faye/websocket'
 class << Faye::WebSocket

@@ -58,8 +58,8 @@ module ActiveRecord
 
       # Returns an array of the values of the first column in a select:
       #   select_values("SELECT id FROM companies LIMIT 3") => [1,2,3]
-      def select_values(arel, name = nil)
-        arel, binds = binds_from_relation arel, []
+      def select_values(arel, name = nil, binds = [])
+        arel, binds = binds_from_relation arel, binds
         select_rows(to_sql(arel, binds), name, binds).map(&:first)
       end
 
@@ -106,7 +106,7 @@ module ActiveRecord
         exec_query(sql, name, binds)
       end
 
-      # Returns the last auto-generated ID from the affected table.
+      # Executes an INSERT query and returns the new record's ID
       #
       # +id_value+ will be returned unless the value is nil, in
       # which case the database will attempt to calculate the last inserted
@@ -115,20 +115,24 @@ module ActiveRecord
       # If the next id was calculated in advance (as in Oracle), it should be
       # passed in as +id_value+.
       def insert(arel, name = nil, pk = nil, id_value = nil, sequence_name = nil, binds = [])
-        sql, binds = sql_for_insert(to_sql(arel, binds), pk, id_value, sequence_name, binds)
-        value      = exec_insert(sql, name, binds, pk, sequence_name)
+        sql, binds, pk, sequence_name = sql_for_insert(to_sql(arel, binds), pk, id_value, sequence_name, binds)
+        value = exec_insert(sql, name, binds, pk, sequence_name)
         id_value || last_inserted_id(value)
       end
+      alias create insert
+      alias insert_sql insert
 
       # Executes the update statement and returns the number of rows affected.
       def update(arel, name = nil, binds = [])
         exec_update(to_sql(arel, binds), name, binds)
       end
+      alias update_sql update
 
       # Executes the delete statement and returns the number of rows affected.
       def delete(arel, name = nil, binds = [])
         exec_delete(to_sql(arel, binds), name, binds)
       end
+      alias delete_sql delete
 
       # Returns +true+ when the connection adapter supports prepared statement
       # caching, otherwise returns +false+
@@ -296,14 +300,15 @@ module ActiveRecord
       # Inserts the given fixture into the table. Overridden in adapters that require
       # something beyond a simple insert (eg. Oracle).
       def insert_fixture(fixture, table_name)
-        columns = schema_cache.columns_hash(table_name)
+        fixture = fixture.stringify_keys
 
+        columns = schema_cache.columns_hash(table_name)
         binds = fixture.map do |name, value|
           if column = columns[name]
             type = lookup_cast_type_from_column(column)
             Relation::QueryAttribute.new(name, value, type)
           else
-            raise Fixture::FixtureError, %(table "#{table_name}" has no column named "#{name}".)
+            raise Fixture::FixtureError, %(table "#{table_name}" has no column named #{name.inspect}.)
           end
         end
         key_list = fixture.keys.map { |name| quote_column_name(name) }
@@ -369,24 +374,8 @@ module ActiveRecord
           exec_query(sql, name, binds, prepare: true)
         end
 
-        # Returns the last auto-generated ID from the affected table.
-        def insert_sql(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil)
-          execute(sql, name)
-          id_value
-        end
-
-        # Executes the update statement and returns the number of rows affected.
-        def update_sql(sql, name = nil)
-          execute(sql, name)
-        end
-
-        # Executes the delete statement and returns the number of rows affected.
-        def delete_sql(sql, name = nil)
-          update_sql(sql, name)
-        end
-
         def sql_for_insert(sql, pk, id_value, sequence_name, binds)
-          [sql, binds]
+          [sql, binds, pk, sequence_name]
         end
 
         def last_inserted_id(result)

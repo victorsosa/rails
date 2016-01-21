@@ -1,3 +1,35 @@
+*   Response etags to always be weak: Prefixes 'W/' to value returned by
+   `ActionDispatch::Http::Cache::Response#etag=`, such that etags set in
+   `fresh_when` and `stale?` are weak.
+
+    Fixes #17556.
+
+    *Abhishek Yadav*
+
+*   Provide the name of HTTP Status code in assertions.
+
+    *Sean Collins*
+
+*   More explicit error message when running `rake routes`. `CONTROLLER` argument
+    can now be supplied in different ways:
+    `Rails::WelcomeController`, `Rails::Welcome`, `rails/welcome`.
+
+    Fixes #22918.
+
+    *Edouard Chin*
+
+*   Allow `ActionController::Parameters` instances as an argument to URL
+    helper methods. An `ArgumentError` will be raised if the passed parameters
+    are not secure.
+
+    Fixes #22832.
+
+    *Prathamesh Sonpatki*
+
+*   Add option for per-form CSRF tokens.
+
+    *Greg Ose & Ben Toews*
+
 *   Add tests and documentation for `ActionController::Renderers::use_renderers`.
 
     *Benjamin Fleischer*
@@ -6,7 +38,7 @@
     or unfiltered values based on from where it is called, `to_h` or `to_unsafe_h`
     respectively.
 
-    Fixes #22841
+    Fixes #22841.
 
     *Prathamesh Sonpatki*
 
@@ -56,7 +88,7 @@
     https://github.com/rails/rails/pull/18334#issuecomment-69234050 we want
     `protect_from_forgery` to default to `prepend: false`.
 
-    `protect_from_forgery` will now be insterted into the callback chain at the
+    `protect_from_forgery` will now be inserted into the callback chain at the
     point it is called in your application. This is useful for cases where you
     want to `protect_from_forgery` after you perform required authentication
     callbacks or other callbacks that are required to run after forgery protection.
@@ -330,7 +362,7 @@
 
 *   Allow `Bearer` as token-keyword in `Authorization-Header`.
 
-    Aditionally to `Token`, the keyword `Bearer` is acceptable as a keyword
+    Additionally to `Token`, the keyword `Bearer` is acceptable as a keyword
     for the auth-token. The `Bearer` keyword is described in the original
     OAuth RFC and used in libraries like Angular-JWT.
 

@@ -55,20 +55,21 @@ Rails will set you up with what seems like a huge amount of stuff for such a tin
 
 ### `rails server`
 
-The `rails server` command launches a small web server named WEBrick which comes bundled with Ruby. You'll use this any time you want to access your application through a web browser.
+The `rails server` command launches a web server named Puma which comes bundled with Rails. You'll use this any time you want to access your application through a web browser.
 
 With no further work, `rails server` will run our new shiny Rails app:
 
 ```bash
 $ cd commandsapp
 $ bin/rails server
-=> Booting WEBrick
-=> Rails 5.0.0 application starting in development on http://localhost:3000
+=> Booting Puma
+=> Rails 5.0.0 application starting in development on http://0.0.0.0:3000
 => Run `rails server -h` for more startup options
 => Ctrl-C to shutdown server
-[2013-08-07 02:00:01] INFO  WEBrick 1.3.1
-[2013-08-07 02:00:01] INFO  ruby 2.2.2 (2015-06-27) [x86_64-darwin11.2.0]
-[2013-08-07 02:00:01] INFO  WEBrick::HTTPServer#start: pid=69680 port=3000
+Puma 2.15.3 starting...
+* Min threads: 0, max threads: 16
+* Environment: development
+* Listening on tcp://localhost:3000
 ```
 
 With just three commands we whipped up a Rails server listening on port 3000. Go to your browser and open [http://localhost:3000](http://localhost:3000), you will see a basic Rails app running.
@@ -181,7 +182,7 @@ Fire up your server using `rails server`.
 
 ```bash
 $ bin/rails server
-=> Booting WEBrick...
+=> Booting Puma...
 ```
 
 The URL will be [http://localhost:3000/greetings/hello](http://localhost:3000/greetings/hello).
@@ -253,7 +254,7 @@ The generator checks that there exist the directories for models, controllers, h
 The migration requires that we **migrate**, that is, run some Ruby code (living in that `20130717151933_create_high_scores.rb`) to modify the schema of our database. Which database? The SQLite3 database that Rails will create for you when we run the `rake db:migrate` command. We'll talk more about Rake in-depth in a little while.
 
 ```bash
-$ bin/rake db:migrate
+$ bin/rails db:migrate
 ==  CreateHighScores: migrating ===============================================
 -- create_table(:high_scores)
    -> 0.0017s
@@ -392,7 +393,7 @@ rake assets:clobber     # Remove compiled assets
 rake assets:precompile  # Compile all the assets named in config.assets.precompile
 rake db:create          # Create the database from config/database.yml for the current Rails.env
 ...
-rake log:clear          # Truncates all *.log files in log/ to zero bytes (specify which logs with LOGS=test,development)
+rake log:clear          # Truncates all/specified *.log files in log/ to zero bytes (specify which logs with LOGS=test,development)
 rake middleware         # Prints out your Rack middleware stack
 ...
 rake tmp:clear          # Clear cache and socket files from tmp/ (narrow w/ tmp:cache:clear, tmp:sockets:clear)

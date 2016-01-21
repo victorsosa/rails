@@ -280,22 +280,6 @@ module ActiveRecord
         log(sql, name) { @connection.execute(sql) }
       end
 
-      def update_sql(sql, name = nil) #:nodoc:
-        super
-        @connection.changes
-      end
-
-      def delete_sql(sql, name = nil) #:nodoc:
-        sql += " WHERE 1=1" unless sql =~ /WHERE/i
-        super sql, name
-      end
-
-      def insert_sql(sql, name = nil, pk = nil, id_value = nil, sequence_name = nil) #:nodoc:
-        super
-        id_value || @connection.last_insert_row_id
-      end
-      alias :create :insert_sql
-
       def select_rows(sql, name = nil, binds = [])
         exec_query(sql, name, binds).rows
       end

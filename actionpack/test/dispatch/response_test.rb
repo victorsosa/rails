@@ -37,6 +37,27 @@ class ResponseTest < ActiveSupport::TestCase
     assert_equal "closed stream", e.message
   end
 
+  def test_read_body_during_action
+    @response.body = "Hello, World!"
+
+    # even though there's no explicitly set content-type,
+    assert_equal nil, @response.content_type
+
+    # after the action reads back @response.body,
+    assert_equal "Hello, World!", @response.body
+
+    # the response can be built.
+    status, headers, body = @response.to_a
+    assert_equal 200, status
+    assert_equal({
+      "Content-Type" => "text/html; charset=utf-8"
+    }, headers)
+
+    parts = []
+    body.each { |part| parts << part }
+    assert_equal ["Hello, World!"], parts
+  end
+
   def test_response_body_encoding
     body = ["hello".encode(Encoding::UTF_8)]
     response = ActionDispatch::Response.new 200, {}, body
@@ -176,11 +197,11 @@ class ResponseTest < ActiveSupport::TestCase
     }
     resp.to_a
 
-    assert_equal('"202cb962ac59075b964b07152d234b70"', resp.etag)
+    assert_equal('W/"202cb962ac59075b964b07152d234b70"', resp.etag)
     assert_equal({:public => true}, resp.cache_control)
 
     assert_equal('public', resp.headers['Cache-Control'])
-    assert_equal('"202cb962ac59075b964b07152d234b70"', resp.headers['ETag'])
+    assert_equal('W/"202cb962ac59075b964b07152d234b70"', resp.headers['ETag'])
   end
 
   test "read charset and content type" do
@@ -367,16 +388,16 @@ class ResponseIntegrationTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     assert_equal('public', @response.headers['Cache-Control'])
-    assert_equal('"202cb962ac59075b964b07152d234b70"', @response.headers['ETag'])
+    assert_equal('W/"202cb962ac59075b964b07152d234b70"', @response.headers['ETag'])
 
-    assert_equal('"202cb962ac59075b964b07152d234b70"', @response.etag)
+    assert_equal('W/"202cb962ac59075b964b07152d234b70"', @response.etag)
     assert_equal({:public => true}, @response.cache_control)
   end
 
   test "response cache control from rackish app" do
     @app = lambda { |env|
       [200,
-        {'ETag' => '"202cb962ac59075b964b07152d234b70"',
+        {'ETag' => 'W/"202cb962ac59075b964b07152d234b70"',
           'Cache-Control' => 'public'}, ['Hello']]
     }
 
@@ -384,9 +405,9 @@ class ResponseIntegrationTest < ActionDispatch::IntegrationTest
     assert_response :success
 
     assert_equal('public', @response.headers['Cache-Control'])
-    assert_equal('"202cb962ac59075b964b07152d234b70"', @response.headers['ETag'])
+    assert_equal('W/"202cb962ac59075b964b07152d234b70"', @response.headers['ETag'])
 
-    assert_equal('"202cb962ac59075b964b07152d234b70"', @response.etag)
+    assert_equal('W/"202cb962ac59075b964b07152d234b70"', @response.etag)
     assert_equal({:public => true}, @response.cache_control)
   end
 

@@ -234,6 +234,11 @@ module ApplicationTests
       assert_match "0 failures, 0 errors, 0 skips", run_test_command('')
     end
 
+    def test_generated_controller_works_with_rails_test
+      create_controller
+      assert_match "0 failures, 0 errors, 0 skips", run_test_command('')
+    end
+
     def test_run_multiple_folders
       create_test_file :models, 'account'
       create_test_file :controllers, 'accounts_controller'
@@ -289,6 +294,84 @@ module ApplicationTests
       end
     end
 
+    def test_more_than_one_line_filter
+      app_file 'test/models/post_test.rb', <<-RUBY
+        require 'test_helper'
+
+        class PostTest < ActiveSupport::TestCase
+          test "first filter" do
+            puts 'PostTest:FirstFilter'
+            assert true
+          end
+
+          test "second filter" do
+            puts 'PostTest:SecondFilter'
+            assert true
+          end
+
+          test "test line filter does not run this" do
+            assert true
+          end
+        end
+      RUBY
+
+      run_test_command('test/models/post_test.rb:4:9').tap do |output|
+        assert_match 'PostTest:FirstFilter', output
+        assert_match 'PostTest:SecondFilter', output
+        assert_match '2 runs, 2 assertions', output
+      end
+    end
+
+    def test_more_than_one_line_filter_with_multiple_files
+      app_file 'test/models/account_test.rb', <<-RUBY
+        require 'test_helper'
+
+        class AccountTest < ActiveSupport::TestCase
+          test "first filter" do
+            puts 'AccountTest:FirstFilter'
+            assert true
+          end
+
+          test "second filter" do
+            puts 'AccountTest:SecondFilter'
+            assert true
+          end
+
+          test "line filter does not run this" do
+            assert true
+          end
+        end
+      RUBY
+
+      app_file 'test/models/post_test.rb', <<-RUBY
+        require 'test_helper'
+
+        class PostTest < ActiveSupport::TestCase
+          test "first filter" do
+            puts 'PostTest:FirstFilter'
+            assert true
+          end
+
+          test "second filter" do
+            puts 'PostTest:SecondFilter'
+            assert true
+          end
+
+          test "line filter does not run this" do
+            assert true
+          end
+        end
+      RUBY
+
+      run_test_command('test/models/account_test.rb:4:9  test/models/post_test:4:9').tap do |output|
+        assert_match 'AccountTest:FirstFilter', output
+        assert_match 'AccountTest:SecondFilter', output
+        assert_match 'PostTest:FirstFilter', output
+        assert_match 'PostTest:SecondFilter', output
+        assert_match '4 runs, 4 assertions', output
+      end
+    end
+
     def test_multiple_line_filters
       create_test_file :models, 'account'
       create_test_file :models, 'post'
@@ -296,14 +379,6 @@ module ApplicationTests
       run_test_command('test/models/account_test.rb:4 test/models/post_test.rb:4').tap do |output|
         assert_match 'AccountTest', output
         assert_match 'PostTest', output
-      end
-    end
-
-    def test_line_filter_without_line_runs_all_tests
-      create_test_file :models, 'account'
-
-      run_test_command('test/models/account_test.rb:').tap do |output|
-        assert_match 'AccountTest', output
       end
     end
 
@@ -365,6 +440,17 @@ module ApplicationTests
     def test_raise_error_when_specified_file_does_not_exist
       error = capture(:stderr) { run_test_command('test/not_exists.rb') }
       assert_match(%r{cannot load such file.+test/not_exists\.rb}, error)
+    end
+
+    def test_pass_TEST_env_on_rake_test
+      create_test_file :models, 'account'
+      create_test_file :models, 'post', pass: false
+
+      output =  Dir.chdir(app_path) { `bin/rake test TEST=test/models/post_test.rb` }
+
+      assert_match "PostTest", output, "passing TEST= should run selected test"
+      assert_no_match "AccountTest", output, "passing TEST= should only run selected test"
+      assert_match '1 runs, 1 assertions', output
     end
 
     private
@@ -447,6 +533,10 @@ module ApplicationTests
         script 'generate scaffold user name:string'
         Dir.chdir(app_path) { File.exist?('app/models/user.rb') }
         run_migration
+      end
+
+      def create_controller
+        script 'generate controller admin/dashboard index'
       end
 
       def run_migration

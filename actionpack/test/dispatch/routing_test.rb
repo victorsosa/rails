@@ -3578,6 +3578,27 @@ class TestRoutingMapper < ActionDispatch::IntegrationTest
     assert_equal 'HEAD', @response.body
   end
 
+  def test_passing_action_parameters_to_url_helpers_raises_error_if_parameters_are_not_permitted
+    draw do
+      root :to => 'projects#index'
+    end
+    params = ActionController::Parameters.new(id: '1')
+
+    assert_raises ArgumentError do
+      root_path(params)
+    end
+  end
+
+  def test_passing_action_parameters_to_url_helpers_is_allowed_if_parameters_are_permitted
+    draw do
+      root :to => 'projects#index'
+    end
+    params = ActionController::Parameters.new(id: '1')
+    params.permit!
+
+    assert_equal '/?id=1', root_path(params)
+  end
+
 private
 
   def draw(&block)
@@ -4631,5 +4652,68 @@ class TestErrorsInController < ActionDispatch::IntegrationTest
 
     get '/i_do_not_exist'
     assert_equal 404, response.status
+  end
+end
+
+class TestPartialDynamicPathSegments < ActionDispatch::IntegrationTest
+  Routes = ActionDispatch::Routing::RouteSet.new
+  Routes.draw do
+    ok = lambda { |env| [200, { 'Content-Type' => 'text/plain' }, []] }
+
+    get '/songs/song-:song', to: ok
+    get '/songs/:song-song', to: ok
+    get '/:artist/song-:song', to: ok
+    get '/:artist/:song-song', to: ok
+
+    get '/optional/songs(/song-:song)', to: ok
+    get '/optional/songs(/:song-song)', to: ok
+    get '/optional/:artist(/song-:song)', to: ok
+    get '/optional/:artist(/:song-song)', to: ok
+  end
+
+  APP = build_app Routes
+
+  def app
+    APP
+  end
+
+  def test_paths_with_partial_dynamic_segments_are_recognised
+    get '/david-bowie/changes-song'
+    assert_equal 200, response.status
+    assert_params artist: 'david-bowie', song: 'changes'
+
+    get '/david-bowie/song-changes'
+    assert_equal 200, response.status
+    assert_params artist: 'david-bowie', song: 'changes'
+
+    get '/songs/song-changes'
+    assert_equal 200, response.status
+    assert_params song: 'changes'
+
+    get '/songs/changes-song'
+    assert_equal 200, response.status
+    assert_params song: 'changes'
+
+    get '/optional/songs/song-changes'
+    assert_equal 200, response.status
+    assert_params song: 'changes'
+
+    get '/optional/songs/changes-song'
+    assert_equal 200, response.status
+    assert_params song: 'changes'
+
+    get '/optional/david-bowie/changes-song'
+    assert_equal 200, response.status
+    assert_params artist: 'david-bowie', song: 'changes'
+
+    get '/optional/david-bowie/song-changes'
+    assert_equal 200, response.status
+    assert_params artist: 'david-bowie', song: 'changes'
+  end
+
+  private
+
+  def assert_params(params)
+    assert_equal(params, request.path_parameters)
   end
 end

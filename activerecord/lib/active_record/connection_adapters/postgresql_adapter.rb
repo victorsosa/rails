@@ -512,8 +512,13 @@ module ActiveRecord
         def extract_value_from_default(default) # :nodoc:
           case default
             # Quoted types
-            when /\A[\(B]?'(.*)'::/m
-              $1.gsub("''".freeze, "'".freeze)
+            when /\A[\(B]?'(.*)'.*::"?([\w. ]+)"?(?:\[\])?\z/m
+              # The default 'now'::date is CURRENT_DATE
+              if $1 == "now".freeze && $2 == "date".freeze
+                nil
+              else
+                $1.gsub("''".freeze, "'".freeze)
+              end
             # Boolean types
             when 'true'.freeze, 'false'.freeze
               default
@@ -535,7 +540,7 @@ module ActiveRecord
         end
 
         def has_default_function?(default_value, default) # :nodoc:
-          !default_value && (%r{\w+\(.*\)} === default)
+          !default_value && (%r{\w+\(.*\)|\(.*\)::\w+} === default)
         end
 
         def load_additional_types(type_map, oids = nil) # :nodoc:
@@ -690,15 +695,7 @@ module ActiveRecord
         end
 
         # Returns the current ID of a table's sequence.
-        def last_insert_id(sequence_name) #:nodoc:
-          Integer(last_insert_id_value(sequence_name))
-        end
-
-        def last_insert_id_value(sequence_name)
-          last_insert_id_result(sequence_name).rows.first.first
-        end
-
-        def last_insert_id_result(sequence_name) #:nodoc:
+        def last_insert_id_result(sequence_name) # :nodoc:
           exec_query("SELECT currval('#{sequence_name}')", 'SQL')
         end
 

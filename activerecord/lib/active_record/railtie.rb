@@ -57,8 +57,10 @@ module ActiveRecord
     console do |app|
       require "active_record/railties/console_sandbox" if app.sandbox?
       require "active_record/base"
-      console = ActiveSupport::Logger.new(STDERR)
-      Rails.logger.extend ActiveSupport::Logger.broadcast console
+      unless ActiveSupport::Logger.logger_outputs_to?(Rails.logger, STDERR, STDOUT)
+        console = ActiveSupport::Logger.new(STDERR)
+        Rails.logger.extend ActiveSupport::Logger.broadcast console
+      end
     end
 
     runner do
@@ -69,6 +71,7 @@ module ActiveRecord
       ActiveSupport.on_load(:active_record) do
         self.time_zone_aware_attributes = true
         self.default_timezone = :utc
+        self.time_zone_aware_types = ActiveRecord::Base.time_zone_aware_types
       end
     end
 

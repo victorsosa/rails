@@ -301,7 +301,7 @@ class MigrationTest < ActiveRecord::TestCase
 
       e = assert_raise(StandardError) { migrator.run }
 
-      assert_equal "An error has occurred, this migration was canceled:\n\nSomething broke", e.message
+      assert_equal "An error has occurred, this and all later migrations canceled:\n\nSomething broke", e.message
 
       assert_no_column Person, :last_name,
         "On error, the Migrator should revert schema changes but it did not."
@@ -352,6 +352,78 @@ class MigrationTest < ActiveRecord::TestCase
   ensure
     ActiveRecord::Base.schema_migrations_table_name = original_schema_migrations_table_name
     Reminder.reset_table_name
+  end
+
+  def test_internal_metadata_table_name
+    original_internal_metadata_table_name = ActiveRecord::Base.internal_metadata_table_name
+
+    assert_equal "active_record_internal_metadatas", ActiveRecord::InternalMetadata.table_name
+    ActiveRecord::Base.table_name_prefix = "prefix_"
+    ActiveRecord::Base.table_name_suffix = "_suffix"
+    Reminder.reset_table_name
+    assert_equal "prefix_active_record_internal_metadatas_suffix", ActiveRecord::InternalMetadata.table_name
+    ActiveRecord::Base.internal_metadata_table_name = "changed"
+    Reminder.reset_table_name
+    assert_equal "prefix_changed_suffix", ActiveRecord::InternalMetadata.table_name
+    ActiveRecord::Base.table_name_prefix = ""
+    ActiveRecord::Base.table_name_suffix = ""
+    Reminder.reset_table_name
+    assert_equal "changed", ActiveRecord::InternalMetadata.table_name
+  ensure
+    ActiveRecord::Base.internal_metadata_table_name = original_internal_metadata_table_name
+    Reminder.reset_table_name
+  end
+
+  def test_internal_metadata_stores_environment
+    current_env     = ActiveRecord::ConnectionHandling::DEFAULT_ENV.call
+    migrations_path = MIGRATIONS_ROOT + "/valid"
+    old_path        = ActiveRecord::Migrator.migrations_paths
+    ActiveRecord::Migrator.migrations_paths = migrations_path
+
+    ActiveRecord::Migrator.up(migrations_path)
+    assert_equal current_env, ActiveRecord::InternalMetadata[:environment]
+
+    original_rails_env  = ENV["RAILS_ENV"]
+    original_rack_env   = ENV["RACK_ENV"]
+    ENV["RAILS_ENV"]    = ENV["RACK_ENV"] = "foofoo"
+    new_env     = ActiveRecord::ConnectionHandling::DEFAULT_ENV.call
+
+    refute_equal current_env, new_env
+
+    sleep 1 # mysql by default does not store fractional seconds in the database
+    ActiveRecord::Migrator.up(migrations_path)
+    assert_equal new_env, ActiveRecord::InternalMetadata[:environment]
+  ensure
+    ActiveRecord::Migrator.migrations_paths = old_path
+    ENV["RAILS_ENV"] = original_rails_env
+    ENV["RACK_ENV"]  = original_rack_env
+  end
+
+
+  def test_migration_sets_internal_metadata_even_when_fully_migrated
+    current_env     = ActiveRecord::ConnectionHandling::DEFAULT_ENV.call
+    migrations_path = MIGRATIONS_ROOT + "/valid"
+    old_path        = ActiveRecord::Migrator.migrations_paths
+    ActiveRecord::Migrator.migrations_paths = migrations_path
+
+    ActiveRecord::Migrator.up(migrations_path)
+    assert_equal current_env, ActiveRecord::InternalMetadata[:environment]
+
+    original_rails_env  = ENV["RAILS_ENV"]
+    original_rack_env   = ENV["RACK_ENV"]
+    ENV["RAILS_ENV"]    = ENV["RACK_ENV"] = "foofoo"
+    new_env     = ActiveRecord::ConnectionHandling::DEFAULT_ENV.call
+
+    refute_equal current_env, new_env
+
+    sleep 1 # mysql by default does not store fractional seconds in the database
+
+    ActiveRecord::Migrator.up(migrations_path)
+    assert_equal new_env, ActiveRecord::InternalMetadata[:environment]
+  ensure
+    ActiveRecord::Migrator.migrations_paths = old_path
+    ENV["RAILS_ENV"] = original_rails_env
+    ENV["RACK_ENV"]  = original_rack_env
   end
 
   def test_proper_table_name_on_migration

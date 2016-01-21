@@ -1,7 +1,9 @@
 require 'active_record/connection_adapters/abstract_adapter'
+require 'active_record/connection_adapters/mysql/column'
 require 'active_record/connection_adapters/mysql/schema_creation'
 require 'active_record/connection_adapters/mysql/schema_definitions'
 require 'active_record/connection_adapters/mysql/schema_dumper'
+require 'active_record/connection_adapters/mysql/type_metadata'
 
 require 'active_support/core_ext/string/strip'
 
@@ -17,78 +19,6 @@ module ActiveRecord
 
       def schema_creation
         MySQL::SchemaCreation.new(self)
-      end
-
-      class Column < ConnectionAdapters::Column # :nodoc:
-        delegate :strict, :extra, to: :sql_type_metadata, allow_nil: true
-
-        def initialize(*)
-          super
-          assert_valid_default(default)
-          extract_default
-        end
-
-        def extract_default
-          if blob_or_text_column?
-            @default = null || strict ? nil : ''
-          end
-        end
-
-        def has_default?
-          return false if blob_or_text_column? # MySQL forbids defaults on blob and text columns
-          super
-        end
-
-        def blob_or_text_column?
-          sql_type =~ /blob/i || type == :text
-        end
-
-        def unsigned?
-          /unsigned/ === sql_type
-        end
-
-        def case_sensitive?
-          collation && !collation.match(/_ci$/)
-        end
-
-        def auto_increment?
-          extra == 'auto_increment'
-        end
-
-        private
-
-        def assert_valid_default(default)
-          if blob_or_text_column? && default.present?
-            raise ArgumentError, "#{type} columns cannot have a default value: #{default.inspect}"
-          end
-        end
-      end
-
-      class MysqlTypeMetadata < DelegateClass(SqlTypeMetadata) # :nodoc:
-        attr_reader :extra, :strict
-
-        def initialize(type_metadata, extra: "", strict: false)
-          super(type_metadata)
-          @type_metadata = type_metadata
-          @extra = extra
-          @strict = strict
-        end
-
-        def ==(other)
-          other.is_a?(MysqlTypeMetadata) &&
-            attributes_for_hash == other.attributes_for_hash
-        end
-        alias eql? ==
-
-        def hash
-          attributes_for_hash.hash
-        end
-
-        protected
-
-        def attributes_for_hash
-          [self.class, @type_metadata, extra, strict]
-        end
       end
 
       ##
@@ -234,7 +164,7 @@ module ActiveRecord
       end
 
       def new_column(field, default, sql_type_metadata = nil, null = true, default_function = nil, collation = nil) # :nodoc:
-        Column.new(field, default, sql_type_metadata, null, default_function, collation)
+        MySQL::Column.new(field, default, sql_type_metadata, null, default_function, collation)
       end
 
       # Must return the MySQL error number from the exception, if the exception has an
@@ -393,11 +323,6 @@ module ActiveRecord
         yield execute(sql, name)
       end
 
-      def update_sql(sql, name = nil) #:nodoc:
-        super
-        @connection.affected_rows
-      end
-
       def begin_db_transaction
         execute "BEGIN"
       end
@@ -507,6 +432,7 @@ module ActiveRecord
       end
 
       def table_exists?(table_name)
+        # Update lib/active_record/internal_metadata.rb when this gets removed
         ActiveSupport::Deprecation.warn(<<-MSG.squish)
           #table_exists? currently checks both tables and views.
           This behavior is deprecated and will be changed with Rails 5.1 to only check tables.
@@ -569,12 +495,16 @@ module ActiveRecord
       end
 
       # Returns an array of +Column+ objects for the table specified by +table_name+.
-      def columns(table_name)#:nodoc:
+      def columns(table_name) # :nodoc:
         sql = "SHOW FULL FIELDS FROM #{quote_table_name(table_name)}"
         execute_and_free(sql, 'SCHEMA') do |result|
           each_hash(result).map do |field|
             type_metadata = fetch_type_metadata(field[:Type], field[:Extra])
-            new_column(field[:Field], field[:Default], type_metadata, field[:Null] == "YES", nil, field[:Collation])
+            if type_metadata.type == :datetime && field[:Default] == "CURRENT_TIMESTAMP"
+              new_column(field[:Field], nil, type_metadata, field[:Null] == "YES", field[:Default], field[:Collation])
+            else
+              new_column(field[:Field], field[:Default], type_metadata, field[:Null] == "YES", nil, field[:Collation])
+            end
           end
         end
       end
@@ -835,7 +765,7 @@ module ActiveRecord
 
       def register_integer_type(mapping, key, options) # :nodoc:
         mapping.register_type(key) do |sql_type|
-          if /unsigned/i =~ sql_type
+          if /\bunsigned\z/ === sql_type
             Type::UnsignedInteger.new(options)
           else
             Type::Integer.new(options)
@@ -852,7 +782,7 @@ module ActiveRecord
       end
 
       def fetch_type_metadata(sql_type, extra = "")
-        MysqlTypeMetadata.new(super(sql_type), extra: extra, strict: strict_mode?)
+        MySQL::TypeMetadata.new(super(sql_type), extra: extra, strict: strict_mode?)
       end
 
       def add_index_length(option_strings, column_names, options = {})

@@ -60,7 +60,7 @@ module ActionCable
         @subscriptions  = ActionCable::Connection::Subscriptions.new(self)
         @message_buffer = ActionCable::Connection::MessageBuffer.new(self)
 
-        @_internal_redis_subscriptions = nil
+        @_internal_subscriptions = nil
         @started_at = Time.now
       end
 
@@ -103,7 +103,7 @@ module ActionCable
 
       # Invoke a method on the connection asynchronously through the pool of thread workers.
       def send_async(method, *arguments)
-        worker_pool.async.invoke(self, method, *arguments)
+        worker_pool.async_invoke(self, method, *arguments)
       end
 
       # Return a basic hash of statistics for the connection keyed with `identifier`, `started_at`, and `subscriptions`.

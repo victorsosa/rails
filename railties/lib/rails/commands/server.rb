@@ -6,6 +6,8 @@ require 'rails'
 module Rails
   class Server < ::Rack::Server
     class Options
+      DEFAULT_PID_PATH = File.expand_path("tmp/pids/server.pid").freeze
+
       def parse!(args)
         args, options = args.dup, {}
 
@@ -91,7 +93,7 @@ module Rails
         environment:        (ENV['RAILS_ENV'] || ENV['RACK_ENV'] || "development").dup,
         daemonize:          false,
         caching:            false,
-        pid:                File.expand_path("tmp/pids/server.pid")
+        pid:                Options::DEFAULT_PID_PATH
       })
     end
 
@@ -133,11 +135,13 @@ module Rails
       def log_to_stdout
         wrapped_app # touch the app so the logger is set up
 
-        console = ActiveSupport::Logger.new($stdout)
+        console = ActiveSupport::Logger.new(STDOUT)
         console.formatter = Rails.logger.formatter
         console.level = Rails.logger.level
 
-        Rails.logger.extend(ActiveSupport::Logger.broadcast(console))
+        unless ActiveSupport::Logger.logger_outputs_to?(Rails.logger, STDOUT)
+          Rails.logger.extend(ActiveSupport::Logger.broadcast(console))
+        end
       end
   end
 end

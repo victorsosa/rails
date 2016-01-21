@@ -1,3 +1,63 @@
+*   Run `type` attributes through attributes API type-casting before
+    instantiating the corresponding subclass. This makes it possible to define
+    custom STI mappings.
+
+    Fixes #21986.
+
+    *Yves Senn*
+
+*   Don't try to quote functions or expressions passed to `:default` option if
+    they are passed as procs.
+
+    This will generate proper query with the passed function or expression for
+    the default option, instead of trying to quote it in incorrect fashion.
+
+    Example:
+
+        create_table :posts do |t|
+          t.datetime :published_at, default: -> { 'NOW()' }
+        end
+
+    *Ryuta Kamizono*
+
+*   Fix regression when loading fixture files with symbol keys.
+
+    Fixes #22584.
+
+    *Yves Senn*
+
+*   Use `version` column as primary key for schema_migrations table because
+    `schema_migrations` versions are guaranteed to be unique.
+
+    This makes it possible to use `update_attributes` on models that do
+    not have a primary key.
+
+    *Richard Schneeman*
+
+*   Add short-hand methods for text and blob types in MySQL.
+
+    In Pg and Sqlite3, `:text` and `:binary` have variable unlimited length.
+    But in MySQL, these have limited length for each types (ref #21591, #21619).
+    This change adds short-hand methods for each text and blob types.
+
+    Example:
+
+        create_table :foos do |t|
+          t.tinyblob   :tiny_blob
+          t.mediumblob :medium_blob
+          t.longblob   :long_blob
+          t.tinytext   :tiny_text
+          t.mediumtext :medium_text
+          t.longtext   :long_text
+        end
+
+    *Ryuta Kamizono*
+
+*   Take into account UTC offset when assigning string representation of
+    timestamp with offset specified to attribute of time type.
+
+    *Andrey Novikov*
+
 *   When calling `first` with a `limit` argument, return directly from the
     `loaded?` records if available.
 
@@ -52,6 +112,14 @@
 *   Version the API presented to migration classes, so we can change parameter
     defaults without breaking existing migrations, or forcing them to be
     rewritten through a deprecation cycle.
+
+    New migrations specify the Rails version they were written for:
+
+        class AddStatusToOrders < ActiveRecord::Migration[5.0]
+          def change
+            # ...
+          end
+        end
 
     *Matthew Draper*, *Ravil Bayramgalin*
 
@@ -578,7 +646,7 @@
 *   Add `ActiveRecord::Relation#in_batches` to work with records and relations
     in batches.
 
-    Available options are `of` (batch size), `load`, `begin_at`, and `end_at`.
+    Available options are `of` (batch size), `load`, `start`, and `finish`.
 
     Examples:
 
@@ -1226,7 +1294,7 @@
 
     *Yves Senn*
 
-*   `find_in_batches` now accepts an `:end_at` parameter that complements the `:start`
+*   `find_in_batches` now accepts an `:finish` parameter that complements the `:start`
      parameter to specify where to stop batch processing.
 
     *Vipul A M*

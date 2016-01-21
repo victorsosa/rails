@@ -23,6 +23,7 @@ module ActiveRecord
       autoload :TableDefinition
       autoload :Table
       autoload :AlterTable
+      autoload :ReferenceDefinition
     end
 
     autoload_at 'active_record/connection_adapters/abstract/connection_pool' do
@@ -308,12 +309,6 @@ module ActiveRecord
       # A list of index algorithms, to be filled by adapters that support them.
       def index_algorithms
         {}
-      end
-
-      # Returns a bind substitution value given a bind +column+
-      # NOTE: The column param is currently being used by the sqlserver-adapter
-      def substitute_at(column, _unused = 0)
-        Arel::Nodes::BindParam.new
       end
 
       # REFERENTIAL INTEGRITY ====================================
