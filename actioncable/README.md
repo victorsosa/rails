@@ -66,6 +66,13 @@ end
 Here `identified_by` is a connection identifier that can be used to find the specific connection again or later.
 Note that anything marked as an identifier will automatically create a delegate by the same name on any channel instances created off the connection.
 
+This relies on the fact that you will already have handled authentication of the user, and
+that a successful authentication sets a signed cookie with the `user_id`. This cookie is then
+automatically sent to the connection instance when a new connection is attempted, and you
+use that to set the `current_user`. By identifying the connection by this same current_user,
+you're also ensuring that you can later retrieve all open connections by a given user (and
+potentially disconnect them all if the user is deleted or deauthorized).
+
 Then you should define your `ApplicationCable::Channel` class in Ruby. This is the place where you put
 shared logic between your channels.
 
@@ -76,13 +83,6 @@ module ApplicationCable
   end
 end
 ```
-
-This relies on the fact that you will already have handled authentication of the user, and
-that a successful authentication sets a signed cookie with the `user_id`. This cookie is then
-automatically sent to the connection instance when a new connection is attempted, and you
-use that to set the `current_user`. By identifying the connection by this same current_user,
-you're also ensuring that you can later retrieve all open connections by a given user (and
-potentially disconnect them all if the user is deleted or deauthorized).
 
 The client-side needs to setup a consumer instance of this connection. That's done like so:
 
@@ -302,7 +302,7 @@ Action Cable has three required configurations: the Redis connection, allowed re
 
 ### Redis
 
-By default, `ActionCable::Server::Base` will look for a configuration file in `Rails.root.join('config/redis/cable.yml')`.
+By default, `ActionCable::Server::Base` will look for a configuration file in `Rails.root.join('config/cable.yml')`.
 This file must specify a Redis url for each Rails environment. It may use the following format:
 
 ```yaml
@@ -316,7 +316,7 @@ test: *development
 You can also change the location of the Redis config file in a Rails initializer with something like:
 
 ```ruby
-Rails.application.paths.add "config/redis/cable", with: "somewhere/else/cable.yml"
+Rails.application.paths.add "config/cable", with: "somewhere/else/cable.yml"
 ```
 
 ### Allowed Request Origins

@@ -318,7 +318,7 @@ module Rails
           remove_file 'config/cable.yml'
           remove_file 'app/assets/javascripts/cable.coffee'
           remove_dir 'app/channels'
-          gsub_file 'app/views/layouts/application.html.erb', /action_cable_meta_tag/, ''
+          gsub_file 'app/views/layouts/application.html.erb', /action_cable_meta_tag/, '' unless options[:api]
         end
       end
 
@@ -327,6 +327,7 @@ module Rails
           remove_file 'config/initializers/session_store.rb'
           remove_file 'config/initializers/cookies_serializer.rb'
           remove_file 'config/initializers/request_forgery_protection.rb'
+          remove_file 'config/initializers/per_form_csrf_tokens.rb'
         end
       end
 
