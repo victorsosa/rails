@@ -1,3 +1,14 @@
+## Rails 5.0.0.beta2 (February 01, 2016) ##
+
+*   Add dummy files for apple-touch-icon.png and apple-touch-icon.png. GH#23427
+
+    *Alexey Zabelin*
+
+*   Add `after_bundle` callbacks in Rails plugin templates.  Useful for allowing
+    templates to perform actions that are dependent upon `bundle install`.
+
+    *Ryan Manuel*
+
 *   Bring back `TEST=` env for `rake test` task.
 
     *Yves Senn*
@@ -15,6 +26,7 @@
 *   Fix using `add_source` with a block after using `gem` in a custom generator.
 
     *Will Fisher*
+
 
 ## Rails 5.0.0.beta1 (December 18, 2015) ##
 

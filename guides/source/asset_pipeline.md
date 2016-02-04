@@ -45,7 +45,7 @@ gem 'coffee-rails'
 ```
 
 Using the `--skip-sprockets` option will prevent Rails 4 from adding
-`sass-rails` and `uglifier` to Gemfile, so if you later want to enable
+`sass-rails` and `uglifier` to your Gemfile, so if you later want to enable
 the asset pipeline you will have to add those gems to your Gemfile. Also,
 creating an application with the `--skip-sprockets` option will generate
 a slightly different `config/application.rb` file, with a require statement
@@ -66,7 +66,7 @@ config.assets.js_compressor = :uglifier
 ```
 
 NOTE: The `sass-rails` gem is automatically used for CSS compression if included
-in Gemfile and no `config.assets.css_compressor` option is set.
+in the Gemfile and no `config.assets.css_compressor` option is set.
 
 
 ### Main Features
@@ -1177,19 +1177,14 @@ TIP: For further details have a look at the docs of your production web server:
 Assets Cache Store
 ------------------
 
-The default Rails cache store will be used by Sprockets to cache assets in
-development and production. This can be changed by setting
-`config.assets.cache_store`:
+By default, Sprockets caches assets in `tmp/cache/assets` in development
+and production environments. This can be changed as follows:
 
 ```ruby
-config.assets.cache_store = :memory_store
-```
-
-The options accepted by the assets cache store are the same as the application's
-cache store.
-
-```ruby
-config.assets.cache_store = :memory_store, { size: 32.megabytes }
+config.assets.configure do |env|
+  env.cache = ActiveSupport::Cache.lookup_store(:memory_store,
+                                                { size: 32.megabytes })
+end
 ```
 
 To disable the assets cache store:
@@ -1300,7 +1295,7 @@ Rails 4 no longer sets default config values for Sprockets in `test.rb`, so
 environment are: `config.assets.compile = true`, `config.assets.compress = false`,
 `config.assets.debug = false` and `config.assets.digest = false`.
 
-The following should also be added to `Gemfile`:
+The following should also be added to your `Gemfile`:
 
 ```ruby
 gem 'sass-rails',   "~> 3.2.3"

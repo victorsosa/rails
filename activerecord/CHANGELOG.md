@@ -1,3 +1,30 @@
+*   Bumped the minimum supported version of PostgreSQL to >= 9.1.
+    Both PG 9.0 and 8.4 are past their end of life date:
+    http://www.postgresql.org/support/versioning/
+
+    *Remo Mueller*
+
+## Rails 5.0.0.beta2 (February 01, 2016) ##
+
+*   `ActiveRecord::Relation#reverse_order` throws `ActiveRecord::IrreversibleOrderError`
+    when the order can not be reversed using current trivial algorithm.
+    Also raises the same error when `#reverse_order` is called on
+    relation without any order and table has no primary key:
+
+        Topic.order("concat(author_name, title)").reverse_order
+          # Before: SELECT `topics`.* FROM `topics` ORDER BY concat(author_name DESC, title) DESC
+          # After: raises ActiveRecord::IrreversibleOrderError
+        Edge.all.reverse_order
+          # Before: SELECT `edges`.* FROM `edges` ORDER BY `edges`.`` DESC
+          # After: raises ActiveRecord::IrreversibleOrderError
+
+    *Bogdan Gusiev*
+
+*   Improve schema_migrations insertion performance by inserting all versions
+    in one INSERT SQL.
+
+    *Akira Matsuda*, *Naoto Koshikawa*
+
 *   Using `references` or `belongs_to` in migrations will always add index
     for the referenced column by default, without adding `index: true` option
     to generated migration file. Users can opt out of this by passing
