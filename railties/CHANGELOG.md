@@ -1,3 +1,13 @@
+*   The Gemfiles of new applications include spring-watcher-listen on Linux and
+    Mac OS X (unless --skip-spring).
+
+    *Xavier Noria*
+
+*   New applications are generated with the evented file system monitor enabled
+    on Linux and Mac OS X.
+
+    *Xavier Noria*
+
 *   Add dummy files for apple-touch-icon.png and apple-touch-icon.png. GH#23427
 
     *Alexey Zabelin*
