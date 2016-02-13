@@ -22,23 +22,23 @@ module ActionView
       # * <tt>finder</tt>  - An instance of <tt>ActionView::LookupContext</tt>
       # * <tt>dependencies</tt>  - An array of dependent views
       # * <tt>partial</tt>  - Specifies whether the template is a partial
-      def digest(options)
-        options.assert_valid_keys(:name, :finder, :dependencies, :partial)
+      def digest(name:, finder:, **options)
+        options.assert_valid_keys(:dependencies, :partial)
 
-        cache_key = ([ options[:name], options[:finder].details_key.hash ].compact + Array.wrap(options[:dependencies])).join('.')
+        cache_key = ([ name, finder.details_key.hash ].compact + Array.wrap(options[:dependencies])).join('.')
 
         # this is a correctly done double-checked locking idiom
         # (Concurrent::Map's lookups have volatile semantics)
         @@cache[cache_key] || @@digest_monitor.synchronize do
           @@cache.fetch(cache_key) do # re-check under lock
-            compute_and_store_digest(cache_key, options)
+            compute_and_store_digest(cache_key, name, finder, options)
           end
         end
       end
 
       private
-        def compute_and_store_digest(cache_key, options) # called under @@digest_monitor lock
-          klass = if options[:partial] || options[:name].include?("/_")
+        def compute_and_store_digest(cache_key, name, finder, options) # called under @@digest_monitor lock
+          klass = if options[:partial] || name.include?("/_")
             # Prevent re-entry or else recursive templates will blow the stack.
             # There is no need to worry about other threads seeing the +false+ value,
             # as they will then have to wait for this thread to let go of the @@digest_monitor lock.
@@ -48,7 +48,7 @@ module ActionView
             Digestor
           end
 
-          @@cache[cache_key] = stored_digest = klass.new(options).digest
+          @@cache[cache_key] = stored_digest = klass.new(name, finder, options).digest
         ensure
           # something went wrong or ActionView::Resolver.caching? is false, make sure not to corrupt the @@cache
           @@cache.delete_pair(cache_key, false) if pre_stored && !stored_digest
@@ -57,37 +57,42 @@ module ActionView
 
     attr_reader :name, :finder, :options
 
-    def initialize(options)
-      @name, @finder = options.values_at(:name, :finder)
-      @options = options.except(:name, :finder)
+    def initialize(name, finder, options = {})
+      @name, @finder = name, finder
+      @options = options
     end
 
     def digest
       Digest::MD5.hexdigest("#{source}-#{dependency_digest}").tap do |digest|
-        logger.try :debug, "  Cache digest for #{template.inspect}: #{digest}"
+        logger.debug "  Cache digest for #{template.inspect}: #{digest}"
       end
     rescue ActionView::MissingTemplate
-      logger.try :error, "  Couldn't find template for digesting: #{name}"
+      logger.error "  Couldn't find template for digesting: #{name}"
       ''
     end
 
     def dependencies
       DependencyTracker.find_dependencies(name, template, finder.view_paths)
     rescue ActionView::MissingTemplate
-      logger.try :error, "  '#{name}' file doesn't exist, so no dependencies"
+      logger.error "  '#{name}' file doesn't exist, so no dependencies"
       []
     end
 
     def nested_dependencies
       dependencies.collect do |dependency|
-        dependencies = PartialDigestor.new(name: dependency, finder: finder).nested_dependencies
+        dependencies = PartialDigestor.new(dependency, finder).nested_dependencies
         dependencies.any? ? { dependency => dependencies } : dependency
       end
     end
 
     private
+      class NullLogger
+        def self.debug(_); end
+        def self.error(_); end
+      end
+
       def logger
-        ActionView::Base.logger
+        ActionView::Base.logger || NullLogger
       end
 
       def logical_name

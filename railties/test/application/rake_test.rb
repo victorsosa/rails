@@ -179,12 +179,20 @@ module ApplicationTests
       app_file "config/routes.rb", <<-RUBY
         Rails.application.routes.draw do
           get '/cart', to: 'cart#show'
-          get '/basketball', to: 'basketball#index'
+          post '/cart', to: 'cart#create'
+          get '/basketballs', to: 'basketball#index'
         end
       RUBY
 
       output = Dir.chdir(app_path){ `bin/rails routes -g show` }
       assert_equal "Prefix Verb URI Pattern     Controller#Action\n  cart GET  /cart(.:format) cart#show\n", output
+
+      output = Dir.chdir(app_path){ `bin/rails routes -g POST` }
+      assert_equal "Prefix Verb URI Pattern     Controller#Action\n       POST /cart(.:format) cart#create\n", output
+
+      output = Dir.chdir(app_path){ `bin/rails routes -g basketballs` }
+      assert_equal "     Prefix Verb URI Pattern            Controller#Action\n" \
+                   "basketballs GET  /basketballs(.:format) basketball#index\n", output
     end
 
     def test_rake_routes_with_controller_search_key
@@ -291,12 +299,11 @@ module ApplicationTests
       assert_no_match(/Errors running/, output)
     end
 
-    def test_scaffold_with_references_columns_tests_pass_when_belongs_to_is_optional
-      app_file "config/initializers/active_record_belongs_to_required_by_default.rb",
-        "Rails.application.config.active_record.belongs_to_required_by_default = false"
-
+    def test_scaffold_with_references_columns_tests_pass_by_default
       output = Dir.chdir(app_path) do
-        `bin/rails generate scaffold LineItems product:references cart:belongs_to;
+        `bin/rails generate model Product;
+         bin/rails generate model Cart;
+         bin/rails generate scaffold LineItems product:references cart:belongs_to;
          RAILS_ENV=test bin/rails db:migrate test`
       end
 

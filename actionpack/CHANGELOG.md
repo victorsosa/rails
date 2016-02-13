@@ -1,14 +1,60 @@
+*   Add request encoding and response parsing to integration tests.
+
+    What previously was:
+
+    ```ruby
+    require 'test_helper'
+
+    class ApiTest < ActionDispatch::IntegrationTest
+      test 'creates articles' do
+        assert_difference -> { Article.count } do
+          post articles_path(format: :json),
+            params: { article: { title: 'Ahoy!' } }.to_json,
+            headers: { 'Content-Type' => 'application/json' }
+        end
+
+        assert_equal({ 'id' => Article.last.id, 'title' => 'Ahoy!' }, JSON.parse(response.body))
+      end
+    end
+    ```
+
+    Can now be written as:
+
+    ```ruby
+    require 'test_helper'
+
+    class ApiTest < ActionDispatch::IntegrationTest
+      test 'creates articles' do
+        assert_difference -> { Article.count } do
+          post articles_path, params: { article: { title: 'Ahoy!' } }, as: :json
+        end
+
+        assert_equal({ 'id' => Article.last.id, 'title' => 'Ahoy!' }, response.parsed_body)
+      end
+    end
+    ```
+    
+    Passing `as: :json` to integration test request helpers will set the format,
+    content type and encode the parameters as JSON.
+    
+    Then on the response side, `parsed_body` will parse the body according to the
+    content type the response has.
+    
+    Currently JSON is the only supported MIME type. Add your own with
+    `ActionDispatch::IntegrationTest.register_encoder`.
+
+    *Kasper Timm Hansen*
+
 *   Add image/svg+xml as a default mime type.
 
     *DHH*
 
 ## Rails 5.0.0.beta2 (February 01, 2016) ##
 
-*   Add `-g` and `-c` (short for _grep_ and _controller_ respectively) options
-    to `bin/rake routes`. These options return the url `name`, `verb` and
+*   Add `-g` and `-c` options to `bin/rails routes`. These options return the url `name`, `verb` and
     `path` field that match the pattern or match a specific controller.
 
-    Deprecate `CONTROLLER` env variable in `bin/rake routes`.
+    Deprecate `CONTROLLER` env variable in `bin/rails routes`.
 
     See #18902.
 

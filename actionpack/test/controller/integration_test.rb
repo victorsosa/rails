@@ -1126,3 +1126,69 @@ class IntegrationRequestsWithSessionSetup < ActionDispatch::IntegrationTest
     assert_equal({"user_name"=>"david"}, cookies.to_hash)
   end
 end
+
+class IntegrationRequestEncodersTest < ActionDispatch::IntegrationTest
+  class FooController < ActionController::Base
+    def foos_json
+      render json: params.permit(:foo)
+    end
+
+    def foos_wibble
+      render plain: 'ok'
+    end
+  end
+
+  def test_encoding_as_json
+    post_to_foos as: :json do
+      assert_response :success
+      assert_match 'foos_json.json', request.path
+      assert_equal 'application/json', request.content_type
+      assert_equal({ 'foo' => 'fighters' }, request.request_parameters)
+      assert_equal({ 'foo' => 'fighters' }, response.parsed_body)
+    end
+  end
+
+  def test_encoding_as_without_mime_registration
+    assert_raise ArgumentError do
+      ActionDispatch::IntegrationTest.register_encoder :wibble
+    end
+  end
+
+  def test_registering_custom_encoder
+    Mime::Type.register 'text/wibble', :wibble
+
+    ActionDispatch::IntegrationTest.register_encoder(:wibble,
+      param_encoder: -> params { params })
+
+    post_to_foos as: :wibble do
+      assert_response :success
+      assert_match 'foos_wibble.wibble', request.path
+      assert_equal 'text/wibble', request.content_type
+      assert_equal Hash.new, request.request_parameters # Unregistered MIME Type can't be parsed.
+      assert_equal 'ok', response.parsed_body
+    end
+  ensure
+    Mime::Type.unregister :wibble
+  end
+
+  def test_parsed_body_without_as_option
+    with_routing do |routes|
+      routes.draw { get ':action' => FooController }
+
+      get '/foos_json.json', params: { foo: 'heyo' }
+
+      assert_equal({ 'foo' => 'heyo' }, response.parsed_body)
+    end
+  end
+
+  private
+    def post_to_foos(as:)
+      with_routing do |routes|
+        routes.draw { post ':action' => FooController }
+
+        post "/foos_#{as}", params: { foo: 'fighters' }, as: as
+
+        yield
+      end
+    end
+end

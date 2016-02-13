@@ -1,3 +1,13 @@
+*   Allow `joins` to be unscoped.
+
+    Closes #13775.
+
+    *Takashi Kokubun*
+
+*   Add ActiveRecord `#second_to_last` and `#third_to_last` methods.
+
+    *Brian Christian*
+
 *   Added `numeric` helper into migrations.
 
     Example:
@@ -612,7 +622,7 @@
 
     *Ben Murphy*, *Matthew Draper*
 
-*   `bin/rake db:migrate` uses
+*   `bin/rails db:migrate` uses
     `ActiveRecord::Tasks::DatabaseTasks.migrations_paths` instead of
     `Migrator.migrations_paths`.
 

@@ -390,6 +390,11 @@ class CollectionCacheController < ActionController::Base
     @customers = [Customer.new('david', 1)]
     render partial: 'customers/commented_customer', collection: @customers, as: :customer
   end
+
+  def index_with_callable_cache_key
+    @customers = [Customer.new('david', 1)]
+    render @customers, cache: -> customer { 'cached_david' }
+  end
 end
 
 class AutomaticCollectionCacheTest < ActionController::TestCase
@@ -405,6 +410,7 @@ class AutomaticCollectionCacheTest < ActionController::TestCase
   def test_collection_fetches_cached_views
     get :index
     assert_equal 1, @controller.partial_rendered_times
+    assert_customer_cached 'david/1', 'david, 1'
 
     get :index
     assert_equal 1, @controller.partial_rendered_times
@@ -412,8 +418,11 @@ class AutomaticCollectionCacheTest < ActionController::TestCase
 
   def test_preserves_order_when_reading_from_cache_plus_rendering
     get :index, params: { id: 2 }
-    get :index_ordered
+    assert_equal 1, @controller.partial_rendered_times
+    assert_select ':root', 'david, 2'
 
+    get :index_ordered
+    assert_equal 3, @controller.partial_rendered_times
     assert_select ':root', "david, 1\n  david, 2\n  david, 3"
   end
 
@@ -430,6 +439,18 @@ class AutomaticCollectionCacheTest < ActionController::TestCase
     get :index_with_comment
     assert_equal 1, @controller.partial_rendered_times
   end
+
+  def test_caching_with_callable_cache_key
+    get :index_with_callable_cache_key
+    assert_customer_cached 'cached_david', 'david, 1'
+    assert_customer_cached 'david/1', 'david, 1'
+  end
+
+  private
+    def assert_customer_cached(key, content)
+      assert_match content,
+        ActionView::PartialRenderer.collection_cache.read("views/#{key}/7c228ab609f0baf0b1f2367469210937")
+    end
 end
 
 class FragmentCacheKeyTestController < CachingController
