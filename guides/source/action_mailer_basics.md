@@ -222,7 +222,7 @@ class SendWeeklySummary
 end
 ```
 
-The method `welcome_email` returns a `ActionMailer::MessageDelivery` object which
+The method `welcome_email` returns an `ActionMailer::MessageDelivery` object which
 can then just be told `deliver_now` or `deliver_later` to send itself out. The
 `ActionMailer::MessageDelivery` object is just a wrapper around a `Mail::Message`. If
 you want to inspect, alter or do anything else with the `Mail::Message` object you can
@@ -278,7 +278,7 @@ different, encode your content and pass in the encoded content and encoding in a
     ```ruby
     encoded_content = SpecialEncode(File.read('/path/to/filename.jpg'))
     attachments['filename.jpg'] = {
-      mime_type: 'application/x-gzip',
+      mime_type: 'application/gzip',
       encoding: 'SpecialEncoding',
       content: encoded_content
     }

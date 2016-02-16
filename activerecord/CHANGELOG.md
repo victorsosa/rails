@@ -1,3 +1,36 @@
+*   Fix a bug where using `t.foreign_key` twice with the same `to_table` within
+    the same table definition would only create one foreign key.
+
+    *George Millo*
+
+*   Fix a regression on has many association, where calling a child from parent in child's callback
+    results in same child records getting added repeatedly to target.
+
+    Fixes #13387.
+
+    *Bogdan Gusiev*, *Jon Hinson*
+
+*   Rework `ActiveRecord::Relation#last`
+
+    1. Never perform additional SQL on loaded relation
+    2. Use SQL reverse order instead of loading relation if relation doesn't have limit
+    3. Deprecated relation loading when SQL order can not be automatically reversed
+
+        Topic.order("title").load.last(3)
+          # before: SELECT ...
+          # after: No SQL
+
+        Topic.order("title").last
+          # before: SELECT * FROM `topics`
+          # after:  SELECT * FROM `topics` ORDER BY `topics`.`title` DESC LIMIT 1
+
+        Topic.order("coalesce(author, title)").last
+          # before: SELECT * FROM `topics`
+          # after:  Deprecation Warning for irreversible order
+
+    *Bogdan Gusiev*
+
+
 *   Allow `joins` to be unscoped.
 
     Closes #13775.

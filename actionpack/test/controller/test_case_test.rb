@@ -137,6 +137,10 @@ XML
       head :created, location: 'created resource'
     end
 
+    def render_cookie
+      render plain: cookies["foo"]
+    end
+
     def delete_cookie
       cookies.delete("foo")
       render plain: 'ok'
@@ -827,6 +831,12 @@ XML
     cookies['foo'] = 'bar'
     get :no_op
     assert_equal 'bar', cookies['foo']
+  end
+
+  def test_cookies_should_be_escaped_properly
+    cookies['foo'] = '+'
+    get :render_cookie
+    assert_equal '+', @response.body
   end
 
   def test_should_detect_if_cookie_is_deleted

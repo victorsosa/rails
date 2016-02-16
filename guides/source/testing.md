@@ -830,7 +830,7 @@ end
 If we run our test now, we should see a failure:
 
 ```bash
-$ bin/rails test test/controllers/articles_controller_test.rb test_should_create_article
+$ bin/rails test test/controllers/articles_controller_test.rb -n test_should_create_article
 Run options: -n test_should_create_article --seed 32266
 
 # Running:
@@ -868,7 +868,7 @@ end
 Now if we run our tests, we should see it pass:
 
 ```bash
-$ bin/rails test test/controllers/articles_controller_test.rb test_should_create_article
+$ bin/rails test test/controllers/articles_controller_test.rb -n test_should_create_article
 Run options: -n test_should_create_article --seed 18981
 
 # Running:
@@ -1191,9 +1191,9 @@ testing) but instead it will be appended to an array
 (`ActionMailer::Base.deliveries`).
 
 NOTE: The `ActionMailer::Base.deliveries` array is only reset automatically in
-`ActionMailer::TestCase` tests. If you want to have a clean slate outside Action
-Mailer tests, you can reset it manually with:
-`ActionMailer::Base.deliveries.clear`
+`ActionMailer::TestCase` and `ActionDispatch::IntegrationTest` tests.
+If you want to have a clean slate outside these test cases, you can reset it
+manually with: `ActionMailer::Base.deliveries.clear`
 
 ### Functional Testing
 
