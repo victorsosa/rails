@@ -222,7 +222,7 @@ module ActionView
     end
 
     def find_template_paths(query)
-      Dir[query].reject do |filename|
+      Dir[query].uniq.reject do |filename|
         File.directory?(filename) ||
           # deals with case-insensitive file systems.
           !File.fnmatch(query, filename, File::FNM_EXTGLOB)
@@ -245,8 +245,12 @@ module ActionView
       partial = escape_entry(path.partial? ? "_#{path.name}" : path.name)
       query.gsub!(/:action/, partial)
 
-      details.each do |ext, variants|
-        query.gsub!(/:#{ext}/, "{#{variants.compact.uniq.join(',')}}")
+      details.each do |ext, candidates|
+        if ext == :variants && candidates == :any
+          query.gsub!(/:#{ext}/, "*")
+        else
+          query.gsub!(/:#{ext}/, "{#{candidates.compact.uniq.join(',')}}")
+        end
       end
 
       File.expand_path(query, @path)
@@ -340,7 +344,11 @@ module ActionView
       query = escape_entry(File.join(@path, path))
 
       exts = EXTENSIONS.map do |ext, prefix|
-        "{#{details[ext].compact.uniq.map { |e| "#{prefix}#{e}," }.join}}"
+        if ext == :variants && details[ext] == :any
+          "{#{prefix}*,}"
+        else
+          "{#{details[ext].compact.uniq.map { |e| "#{prefix}#{e}," }.join}}"
+        end
       end.join
 
       query + exts

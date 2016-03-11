@@ -335,8 +335,8 @@ include the 'data-turbolinks-track' option which causes turbolinks to check if
 an asset has been updated and if so loads it into the page:
 
 ```erb
-<%= stylesheet_link_tag "application", media: "all", "data-turbolinks-track" => true %>
-<%= javascript_include_tag "application", "data-turbolinks-track" => true %>
+<%= stylesheet_link_tag "application", media: "all", "data-turbolinks-track" => "reload" %>
+<%= javascript_include_tag "application", "data-turbolinks-track" => "reload" %>
 ```
 
 In regular views you can access images in the `public/assets/images` directory
@@ -670,7 +670,7 @@ anymore, delete these options from the `javascript_include_tag` and
 `stylesheet_link_tag`.
 
 The fingerprinting behavior is controlled by the `config.assets.digest`
-initialization option (which defaults to `true` for production and development).
+initialization option (which defaults to `true`).
 
 NOTE: Under normal circumstances the default `config.assets.digest` option
 should not be changed. If there are no digests in the filenames, and far-future
@@ -789,7 +789,6 @@ location ~ ^/assets/ {
   add_header Cache-Control public;
 
   add_header ETag "";
-  break;
 }
 ```
 

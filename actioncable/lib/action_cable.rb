@@ -29,13 +29,13 @@ module ActionCable
   extend ActiveSupport::Autoload
 
   INTERNAL = {
-    identifiers: {
-      ping: '_ping'.freeze
-    },
     message_types: {
+      welcome: 'welcome'.freeze,
+      ping: 'ping'.freeze,
       confirmation: 'confirm_subscription'.freeze,
       rejection: 'reject_subscription'.freeze
-    }
+    },
+    default_mount_path: '/cable'.freeze
   }
 
   # Singleton instance of the server

@@ -5,7 +5,7 @@ gemspec
 # We need a newish Rake since Active Job sets its test tasks' descriptions.
 gem 'rake', '>= 10.3'
 
-# This needs to be with require false to ensure correct loading order, as has to
+# This needs to be with require false to ensure correct loading order, as it has to
 # be loaded after loading the test library.
 gem 'mocha', '~> 0.14', require: false
 
@@ -17,13 +17,7 @@ gem 'turbolinks', github: 'turbolinks/turbolinks-rails'
 # require: false so bcrypt is loaded only when has_secure_password is used.
 # This is to avoid Active Model (and by extension the entire framework)
 # being dependent on a binary library.
-platforms :mingw, :x64_mingw, :mswin, :mswin64 do
-  gem 'bcrypt-ruby', '~> 3.0.0', require: false
-end
-
-platforms :ruby, :jruby, :rbx do
-  gem 'bcrypt', '~> 3.1.10', require: false
-end
+gem 'bcrypt', '~> 3.1.11', require: false
 
 # This needs to be with require false to avoid it being automatically loaded by
 # sprockets.

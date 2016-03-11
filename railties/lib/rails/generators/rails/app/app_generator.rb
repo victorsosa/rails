@@ -80,6 +80,7 @@ module Rails
         template "secrets.yml"
         template "cable.yml" unless options[:skip_action_cable]
         template "puma.rb"   unless options[:skip_puma]
+        template "spring.rb" if spring_install?
 
         directory "environments"
         directory "initializers"
@@ -91,6 +92,9 @@ module Rails
       cookie_serializer_config_exist = File.exist?('config/initializers/cookies_serializer.rb')
       callback_terminator_config_exist = File.exist?('config/initializers/callback_terminator.rb')
       active_record_belongs_to_required_by_default_config_exist = File.exist?('config/initializers/active_record_belongs_to_required_by_default.rb')
+      action_cable_config_exist = File.exist?('config/cable.yml')
+      ssl_options_exist = File.exist?('config/initializers/ssl_options.rb')
+      rack_cors_config_exist = File.exist?('config/initializers/cors.rb')
 
       config
 
@@ -99,11 +103,23 @@ module Rails
       end
 
       unless cookie_serializer_config_exist
-        gsub_file 'config/initializers/cookies_serializer.rb', /json/, 'marshal'
+        gsub_file 'config/initializers/cookies_serializer.rb', /json(?!,)/, 'marshal'
       end
 
       unless active_record_belongs_to_required_by_default_config_exist
         remove_file 'config/initializers/active_record_belongs_to_required_by_default.rb'
+      end
+
+      unless action_cable_config_exist
+        template 'config/cable.yml'
+      end
+
+      unless ssl_options_exist
+        remove_file 'config/initializers/ssl_options.rb'
+      end
+
+      unless rack_cors_config_exist
+        remove_file 'config/initializers/cors.rb'
       end
     end
 
@@ -317,7 +333,7 @@ module Rails
       def delete_action_cable_files_skipping_action_cable
         if options[:skip_action_cable]
           remove_file 'config/cable.yml'
-          remove_file 'app/assets/javascripts/cable.coffee'
+          remove_file 'app/assets/javascripts/cable.js'
           remove_dir 'app/channels'
         end
       end

@@ -289,7 +289,7 @@ module ActionMailer
   #
   # Note that the proc is evaluated right at the start of the mail message generation, so if you
   # set something in the default using a proc, and then set the same thing inside of your
-  # mailer method, it will get over written by the mailer method.
+  # mailer method, it will get overwritten by the mailer method.
   #
   # It is also possible to set these default options that will be used in all mailers through
   # the <tt>default_options=</tt> configuration in <tt>config/application.rb</tt>:
@@ -430,6 +430,7 @@ module ActionMailer
     include AbstractController::Translation
     include AbstractController::AssetPaths
     include AbstractController::Callbacks
+    include AbstractController::Caching
 
     include ActionView::Layouts
 
@@ -945,6 +946,18 @@ module ActionMailer
       response[:charset] ||= charset
       part = Mail::Part.new(response)
       container.add_part(part)
+    end
+
+    # This and #instrument_name is for caching instrument
+    def instrument_payload(key)
+      {
+        mailer: mailer_name,
+        key: key
+      }
+    end
+
+    def instrument_name
+      "action_mailer"
     end
 
     ActiveSupport.run_load_hooks(:action_mailer, self)

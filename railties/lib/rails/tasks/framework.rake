@@ -1,4 +1,6 @@
-namespace :rails do
+require 'active_support/deprecation'
+
+namespace :app do
   desc "Update configs and some other initially generated files (or use just update:configs or update:bin)"
   task update: [ "update:configs", "update:bin" ]
 
@@ -45,8 +47,9 @@ namespace :rails do
         @app_generator ||= begin
           require 'rails/generators'
           require 'rails/generators/rails/app/app_generator'
-          gen = Rails::Generators::AppGenerator.new ["rails"], { with_dispatchers: true, api: !!Rails.application.config.api_only },
-            destination_root: Rails.root
+          gen = Rails::Generators::AppGenerator.new ["rails"],
+                                                    { api: !!Rails.application.config.api_only },
+                                                    destination_root: Rails.root
           File.exist?(Rails.root.join("config", "application.rb")) ?
             gen.send(:app_const) : gen.send(:valid_const?)
           gen
@@ -63,6 +66,18 @@ namespace :rails do
     # desc "Adds new executables to the application bin/ directory"
     task :bin do
       RailsUpdate.invoke_from_app_generator :create_bin_files
+    end
+  end
+end
+
+namespace :rails do
+  %i(update template templates:copy update:configs update:bin).each do |task_name|
+    task "#{task_name}" do
+      ActiveSupport::Deprecation.warn(<<-MSG.squish)
+        Running #{task_name} with the rails: namespace is deprecated in favor of app: namespace.
+        Run bin/rails app:#{task_name} instead.
+      MSG
+      Rake.application.invoke_task("app:#{task_name}")
     end
   end
 end

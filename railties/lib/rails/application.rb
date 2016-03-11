@@ -74,8 +74,7 @@ module Rails
   # the configuration.
   #
   # If you decide to define rake tasks, runners, or initializers in an
-  # application other than +Rails.application+, then you must run those
-  # these manually.
+  # application other than +Rails.application+, then you must run them manually.
   class Application < Engine
     autoload :Bootstrap,              'rails/application/bootstrap'
     autoload :Configuration,          'rails/application/configuration'
@@ -113,7 +112,7 @@ module Rails
 
     attr_accessor :assets, :sandbox
     alias_method :sandbox?, :sandbox
-    attr_reader :reloaders
+    attr_reader :reloaders, :reloader, :executor
 
     delegate :default_url_options, :default_url_options=, to: :routes
 
@@ -130,6 +129,10 @@ module Rails
       @railties          = nil
       @message_verifiers = {}
       @ran_load_hooks    = false
+
+      @executor          = Class.new(ActiveSupport::Executor)
+      @reloader          = Class.new(ActiveSupport::Reloader)
+      @reloader.executor = @executor
 
       # are these actually used?
       @initial_variable_values = initial_variable_values

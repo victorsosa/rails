@@ -26,6 +26,7 @@ class TemplateDigestorTest < ActionView::TestCase
     @cwd     = Dir.pwd
     @tmp_dir = Dir.mktmpdir
 
+    ActionView::LookupContext::DetailsKey.clear
     FileUtils.cp_r FixtureFinder::FIXTURES_DIR, @tmp_dir
     Dir.chdir @tmp_dir
   end
@@ -143,6 +144,11 @@ class TemplateDigestorTest < ActionView::TestCase
     assert_digest_difference("messages/show") do
       change_template("messages/actions/_move")
     end
+  end
+
+  def test_nested_template_deps
+    nested_deps = ["messages/header", {"comments/comments"=>["comments/comment"]}, "messages/actions/move", "events/event", "messages/something_missing", "messages/something_missing_1", "messages/message", "messages/form"]
+    assert_equal nested_deps, nested_dependencies("messages/show")
   end
 
   def test_recursion_in_renders
@@ -312,16 +318,17 @@ class TemplateDigestorTest < ActionView::TestCase
       options = options.dup
 
       finder.variants = options.delete(:variants) || []
-
-      ActionView::Digestor.digest({ name: template_name, finder: finder }.merge(options))
+      ActionView::Digestor.digest(name: template_name, finder: finder, dependencies: (options[:dependencies] || []))
     end
 
     def dependencies(template_name)
-      ActionView::Digestor.new(template_name, finder).dependencies
+      tree = ActionView::Digestor.tree(template_name, finder)
+      tree.children.map(&:name)
     end
 
     def nested_dependencies(template_name)
-      ActionView::Digestor.new(template_name, finder).nested_dependencies
+      tree = ActionView::Digestor.tree(template_name, finder)
+      tree.children.map(&:to_dep_map)
     end
 
     def finder

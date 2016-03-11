@@ -16,7 +16,7 @@ module ActiveRecord
         if config[:flags].kind_of? Array
           config[:flags].push "FOUND_ROWS".freeze
         else
-          config[:flags] |= Mysql2::Client::FOUND_ROWS          
+          config[:flags] |= Mysql2::Client::FOUND_ROWS
         end
       end
 
@@ -131,13 +131,7 @@ module ActiveRecord
       def exec_query(sql, name = 'SQL', binds = [], prepare: false)
         result = execute(sql, name)
         @connection.next_result while @connection.more_results?
-        ActiveRecord::Result.new(result.fields, result.to_a)
-      end
-
-      alias exec_without_stmt exec_query
-
-      def exec_insert(sql, name, binds, pk = nil, sequence_name = nil)
-        execute to_sql(sql, binds), name
+        ActiveRecord::Result.new(result.fields, result.to_a) if result
       end
 
       def exec_delete(sql, name, binds)

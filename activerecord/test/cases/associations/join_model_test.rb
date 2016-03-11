@@ -88,7 +88,7 @@ class AssociationsJoinModelTest < ActiveRecord::TestCase
 
   def test_polymorphic_has_many_going_through_join_model_with_custom_select_and_joins
     assert_equal tags(:general), tag = posts(:welcome).tags.add_joins_and_select.first
-    assert_nothing_raised(NoMethodError) { tag.author_id }
+    assert_nothing_raised { tag.author_id }
   end
 
   def test_polymorphic_has_many_going_through_join_model_with_custom_foreign_key
@@ -361,6 +361,13 @@ class AssociationsJoinModelTest < ActiveRecord::TestCase
   def test_has_many_polymorphic_with_source_type
     # added sort by ID as otherwise Oracle select sometimes returned rows in different order
     assert_equal posts(:welcome, :thinking).sort_by(&:id), tags(:general).tagged_posts.sort_by(&:id)
+  end
+
+  def test_has_many_polymorphic_associations_merges_through_scope
+    Tag.has_many :null_taggings, -> { none }, class_name: :Tagging
+    Tag.has_many :null_tagged_posts, :through => :null_taggings, :source => 'taggable', :source_type => 'Post'
+    assert_equal [], tags(:general).null_tagged_posts
+    refute_equal [], tags(:general).tagged_posts
   end
 
   def test_eager_has_many_polymorphic_with_source_type

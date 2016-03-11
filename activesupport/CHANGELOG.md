@@ -1,17 +1,43 @@
+*   Deprecate `Module.local_constants`. Please use `Module.constants(false)` instead.
+
+    *Yuichiro Kaneko*
+
+*   Publish ActiveSupport::Executor and ActiveSupport::Reloader APIs to allow
+    components and libraries to manage, and participate in, the execution of
+    application code, and the application reloading process.
+
+    *Matthew Draper*
+
+
+## Rails 5.0.0.beta3 (February 24, 2016) ##
+
+*   Deprecate arguments on `assert_nothing_raised`.
+
+    `assert_nothing_raised` does not assert the arguments that have been passed
+    in (usually a specific exception class) since the method only yields the
+    block. So as not to confuse the users that the arguments have meaning, they
+    are being deprecated.
+
+    *Tara Scherner de la Fuente*
+
+*   Make `benchmark('something', silence: true)` actually work
+
+    *DHH*
+
 *   Add `#on_weekday?` method to `Date`, `Time`, and `DateTime`.
 
     `#on_weekday?` returns `true` if the receiving date/time does not fall on a Saturday
     or Sunday.
-    
+
     *Vipul A M*
 
 *   Add `Array#second_to_last` and `Array#third_to_last` methods.
 
     *Brian Christian*
 
-*  Fix regression in `Hash#dig` for HashWithIndifferentAccess.
+*   Fix regression in `Hash#dig` for HashWithIndifferentAccess.
 
-   *Jon Moss*
+    *Jon Moss*
 
 ## Rails 5.0.0.beta2 (February 01, 2016) ##
 

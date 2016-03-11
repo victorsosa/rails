@@ -1,3 +1,66 @@
+*   Execute default_scope defined by abstract class in the context of subclass.
+
+    Fixes #23413 & #10658
+
+    *Mehmet Emin İNAÇ*
+
+*   Fix an issue when preloading associations with extensions.
+    Previously every association with extension methods was transformed into an
+    instance dependent scope. This is no longer the case.
+
+    Fixes #23934.
+
+    *Yves Senn*
+
+*   Deprecate `{insert|update|delete}_sql` in `DatabaseStatements`.
+    Use the `{insert|update|delete}` public methods instead.
+
+    *Ryuta Kamizono*
+
+*   Added a configuration option to have active record raise an ArgumentError
+    if the order or limit is ignored in a batch query, rather than logging a
+    warning message.
+
+    *Scott Ringwelski*
+
+*   Honour the order of the joining model in a `has_many :through` association when eager loading.
+
+    Example:
+
+    The below will now follow the order of `by_lines` when eager loading `authors`.
+
+        class Article < ActiveRecord::Base
+          has_many :by_lines, -> { order(:position) }
+          has_many :authors, through: :by_lines
+        end
+
+    Fixes #17864.
+
+    *Yasyf Mohamedali*, *Joel Turkel*
+
+*   Ensure that the Suppressor runs before validations.
+
+    This moves the suppressor up to be run before validations rather than after
+    validations. There's no reason to validate a record you aren't planning on saving.
+
+    *Eileen M. Uchitelle*
+
+## Rails 5.0.0.beta3 (February 24, 2016) ##
+
+*   Save many-to-many objects based on association primary key.
+
+    Fixes #20995.
+
+    *himesh-r*
+
+*   Ensure that mutations of the array returned from `ActiveRecord::Relation#to_a`
+    do not affect the original relation, by returning a duplicate array each time.
+
+    This brings the behavior in line with `CollectionProxy#to_a`, which was
+    already more careful.
+
+    *Matthew Draper*
+
 *   Fixed `where` for polymorphic associations when passed an array containing different types.
 
     Fixes #17011.
@@ -42,7 +105,6 @@
           # after:  Deprecation Warning for irreversible order
 
     *Bogdan Gusiev*
-
 
 *   Allow `joins` to be unscoped.
 
@@ -171,6 +233,21 @@
     *Ben Woosley*
 
 ## Rails 5.0.0.beta1 (December 18, 2015) ##
+
+*   Limit record touching to once per transaction.
+
+    If you have a parent/grand-parent relation like:
+
+        Comment belongs_to :message, touch: true
+        Message belongs_to :project, touch: true
+        Project belongs_to :account, touch: true
+
+    When the lowest entry(`Comment`) is saved, now, it won't repeat the touch
+    call multiple times for the parent records.
+
+    Related #18606.
+
+    *arthurnn*
 
 *   Order the result of `find(ids)` to match the passed array, if the relation
     has no explicit order defined.
@@ -1443,18 +1520,6 @@
     column name, which is consistent every time you run the migration.
 
     *Chris Sinjakli*
-
-*   Validation errors would be raised for parent records when an association
-    was saved when the parent had `validate: false`. It should not be the
-    responsibility of the model to validate an associated object unless the
-    object was created or modified by the parent.
-
-    This fixes the issue by skipping validations if the parent record is
-    persisted, not changed, and not marked for destruction.
-
-    Fixes #17621.
-
-    *Eileen M. Uchitelle*, *Aaron Patterson*
 
 *   Fix n+1 query problem when eager loading nil associations (fixes #18312)
 

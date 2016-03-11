@@ -119,7 +119,7 @@ module ActiveRecord
       #
       #   class MoneyType < ActiveRecord::Type::Integer
       #     def cast(value)
-      #       if !value.kind_of(Numeric) && value.include?('$')
+      #       if !value.kind_of?(Numeric) && value.include?('$')
       #         price_in_dollars = value.gsub(/\$/, '').to_f
       #         super(price_in_dollars * 100)
       #       else
@@ -154,7 +154,7 @@ module ActiveRecord
       #   end
       #
       #   class MoneyType < Type::Value
-      #     def initialize(currency_converter)
+      #     def initialize(currency_converter:)
       #       @currency_converter = currency_converter
       #     end
       #
@@ -171,7 +171,7 @@ module ActiveRecord
       #
       #   class Product < ActiveRecord::Base
       #     currency_converter = ConversionRatesFromTheInternet.new
-      #     attribute :price_in_bitcoins, :money, currency_converter
+      #     attribute :price_in_bitcoins, :money, currency_converter: currency_converter
       #   end
       #
       #   Product.where(price_in_bitcoins: Money.new(5, "USD"))
