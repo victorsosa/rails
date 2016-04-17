@@ -42,10 +42,10 @@ module ActiveRecord
     #   Person.find_by(name: 'Spartacus', rating: 4)
     #   # returns the first item or nil.
     #
-    #   Person.where(name: 'Spartacus', rating: 4).first_or_initialize
+    #   Person.find_or_initialize_by(name: 'Spartacus', rating: 4)
     #   # returns the first item or returns a new instance (requires you call .save to persist against the database).
     #
-    #   Person.where(name: 'Spartacus', rating: 4).first_or_create
+    #   Person.find_or_create_by(name: 'Spartacus', rating: 4)
     #   # returns the first item or creates it and returns it.
     #
     # ==== Alternatives for #find
@@ -312,7 +312,7 @@ module ActiveRecord
         conditions = conditions.id
         ActiveSupport::Deprecation.warn(<<-MSG.squish)
           You are passing an instance of ActiveRecord::Base to `exists?`.
-          Please pass the id of the object by calling `.id`
+          Please pass the id of the object by calling `.id`.
         MSG
       end
 
@@ -467,7 +467,7 @@ module ActiveRecord
         id = id.id
         ActiveSupport::Deprecation.warn(<<-MSG.squish)
           You are passing an instance of ActiveRecord::Base to `find`.
-          Please pass the id of the object by calling `.id`
+          Please pass the id of the object by calling `.id`.
         MSG
       end
 

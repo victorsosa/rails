@@ -1,6 +1,7 @@
 require 'active_record/connection_adapters/abstract_adapter'
 require 'active_record/connection_adapters/statement_pool'
 require 'active_record/connection_adapters/sqlite3/explain_pretty_printer'
+require 'active_record/connection_adapters/sqlite3/quoting'
 require 'active_record/connection_adapters/sqlite3/schema_creation'
 
 gem 'sqlite3', '~> 1.3.6'
@@ -49,6 +50,8 @@ module ActiveRecord
     # * <tt>:database</tt> - Path to the database file.
     class SQLite3Adapter < AbstractAdapter
       ADAPTER_NAME = 'SQLite'.freeze
+
+      include SQLite3::Quoting
       include Savepoints
 
       NATIVE_DATABASE_TYPES = {
@@ -84,7 +87,6 @@ module ActiveRecord
         @statements = StatementPool.new(self.class.type_cast_config_to_integer(config.fetch(:statement_limit) { 1000 }))
 
         @visitor = Arel::Visitors::SQLite.new self
-        @quoted_column_names = {}
 
         if self.class.type_cast_config_to_boolean(config.fetch(:prepared_statements) { true })
           @prepared_statements = true
@@ -172,44 +174,6 @@ module ActiveRecord
 
       def supports_explain?
         true
-      end
-
-      # QUOTING ==================================================
-
-      def _quote(value) # :nodoc:
-        case value
-        when Type::Binary::Data
-          "x'#{value.hex}'"
-        else
-          super
-        end
-      end
-
-      def _type_cast(value) # :nodoc:
-        case value
-        when BigDecimal
-          value.to_f
-        when String
-          if value.encoding == Encoding::ASCII_8BIT
-            super(value.encode(Encoding::UTF_8))
-          else
-            super
-          end
-        else
-          super
-        end
-      end
-
-      def quote_string(s) #:nodoc:
-        @connection.class.quote(s)
-      end
-
-      def quote_table_name_for_assignment(table, attr)
-        quote_column_name(attr)
-      end
-
-      def quote_column_name(name) #:nodoc:
-        @quoted_column_names[name] ||= %Q("#{name.to_s.gsub('"', '""')}")
       end
 
       #--
@@ -337,7 +301,8 @@ module ActiveRecord
       end
 
       # Returns an array of +Column+ objects for the table specified by +table_name+.
-      def columns(table_name) #:nodoc:
+      def columns(table_name) # :nodoc:
+        table_name = table_name.to_s
         table_structure(table_name).map do |field|
           case field["dflt_value"]
           when /^null$/i
@@ -351,7 +316,7 @@ module ActiveRecord
           collation = field['collation']
           sql_type = field['type']
           type_metadata = fetch_type_metadata(sql_type)
-          new_column(field['name'], field['dflt_value'], type_metadata, field['notnull'].to_i == 0, nil, collation)
+          new_column(field['name'], field['dflt_value'], type_metadata, field['notnull'].to_i == 0, table_name, nil, collation)
         end
       end
 

@@ -5,7 +5,7 @@ module FileUpdateCheckerSharedTests
   include FileUtils
 
   def tmpdir
-    @tmpdir ||= Dir.mktmpdir(nil, __dir__)
+    @tmpdir
   end
 
   def tmpfile(name)
@@ -16,8 +16,8 @@ module FileUpdateCheckerSharedTests
     @tmpfiles ||= %w(foo.rb bar.rb baz.rb).map { |f| tmpfile(f) }
   end
 
-  def teardown
-    FileUtils.rm_rf(@tmpdir) if defined? @tmpdir
+  def run(*args)
+    Dir.mktmpdir(nil, __dir__) { |dir| @tmpdir = dir; super }
   end
 
   test 'should not execute the block if no paths are given' do
@@ -124,6 +124,22 @@ module FileUpdateCheckerSharedTests
 
     now  = Time.now
     time = Time.mktime(now.year + 1, now.month, now.day) # wrong mtime from the future
+    File.utime(time, time, tmpfiles[0])
+
+    checker = new_checker(tmpfiles) { i += 1 }
+
+    touch(tmpfiles[1..-1])
+
+    assert checker.execute_if_updated
+    assert_equal 1, i
+  end
+
+  test 'should return max_time for files with mtime = Time.at(0)' do
+    i = 0
+
+    FileUtils.touch(tmpfiles)
+
+    time = Time.at(0) # wrong mtime from the future
     File.utime(time, time, tmpfiles[0])
 
     checker = new_checker(tmpfiles) { i += 1 }

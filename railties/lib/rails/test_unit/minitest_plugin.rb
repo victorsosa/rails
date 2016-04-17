@@ -84,14 +84,18 @@ module Minitest
     end
 
     # Replace progress reporter for colors.
-    self.reporter.reporters.delete_if { |reporter| reporter.kind_of?(SummaryReporter) || reporter.kind_of?(ProgressReporter) }
-    self.reporter << SuppressedSummaryReporter.new(options[:io], options)
-    self.reporter << ::Rails::TestUnitReporter.new(options[:io], options)
+    reporter.reporters.delete_if { |reporter| reporter.kind_of?(SummaryReporter) || reporter.kind_of?(ProgressReporter) }
+    reporter << SuppressedSummaryReporter.new(options[:io], options)
+    reporter << ::Rails::TestUnitReporter.new(options[:io], options)
   end
 
   mattr_accessor(:run_with_autorun)         { false }
   mattr_accessor(:run_with_rails_extension) { false }
 end
 
+# Put Rails as the first plugin minitest initializes so other plugins
+# can override or replace our default reporter setup.
+# Since minitest only loads plugins if its extensions are empty we have
+# to call `load_plugins` first.
 Minitest.load_plugins
-Minitest.extensions << 'rails'
+Minitest.extensions.unshift 'rails'

@@ -1,6 +1,7 @@
 require 'active_record/connection_adapters/abstract_adapter'
 require 'active_record/connection_adapters/mysql/column'
 require 'active_record/connection_adapters/mysql/explain_pretty_printer'
+require 'active_record/connection_adapters/mysql/quoting'
 require 'active_record/connection_adapters/mysql/schema_creation'
 require 'active_record/connection_adapters/mysql/schema_definitions'
 require 'active_record/connection_adapters/mysql/schema_dumper'
@@ -11,6 +12,7 @@ require 'active_support/core_ext/string/strip'
 module ActiveRecord
   module ConnectionAdapters
     class AbstractMysqlAdapter < AbstractAdapter
+      include MySQL::Quoting
       include MySQL::ColumnDumper
       include Savepoints
 
@@ -32,8 +34,6 @@ module ActiveRecord
       class_attribute :emulate_booleans
       self.emulate_booleans = true
 
-      QUOTED_TRUE, QUOTED_FALSE = '1', '0'
-
       NATIVE_DATABASE_TYPES = {
         primary_key: "int auto_increment PRIMARY KEY",
         string:      { name: "varchar", limit: 255 },
@@ -54,7 +54,6 @@ module ActiveRecord
 
       def initialize(connection, logger, connection_options, config)
         super(connection, logger, config)
-        @quoted_column_names, @quoted_table_names = {}, {}
 
         @visitor = Arel::Visitors::MySQL.new self
 
@@ -78,8 +77,12 @@ module ActiveRecord
         }
       end
 
-      def version
+      def version #:nodoc:
         @version ||= Version.new(full_version.match(/^\d+\.\d+\.\d+/)[0])
+      end
+
+      def mariadb? # :nodoc:
+        full_version =~ /mariadb/i
       end
 
       # Returns true, since this connection adapter supports migrations.
@@ -122,7 +125,11 @@ module ActiveRecord
       end
 
       def supports_datetime_with_precision?
-        version >= '5.6.4'
+        if mariadb?
+          version >= '5.3.0'
+        else
+          version >= '5.6.4'
+        end
       end
 
       def supports_advisory_locks?
@@ -153,56 +160,14 @@ module ActiveRecord
         raise NotImplementedError
       end
 
-      def new_column(field, default, sql_type_metadata = nil, null = true, default_function = nil, collation = nil) # :nodoc:
-        MySQL::Column.new(field, default, sql_type_metadata, null, default_function, collation)
+      def new_column(field, default, sql_type_metadata, null, table_name, default_function = nil, collation = nil, comment = nil) # :nodoc:
+        MySQL::Column.new(field, default, sql_type_metadata, null, table_name, default_function, collation, comment)
       end
 
       # Must return the MySQL error number from the exception, if the exception has an
       # error number.
       def error_number(exception) # :nodoc:
         raise NotImplementedError
-      end
-
-      # QUOTING ==================================================
-
-      def _quote(value) # :nodoc:
-        if value.is_a?(Type::Binary::Data)
-          "x'#{value.hex}'"
-        else
-          super
-        end
-      end
-
-      def quote_column_name(name) #:nodoc:
-        @quoted_column_names[name] ||= "`#{name.to_s.gsub('`', '``')}`"
-      end
-
-      def quote_table_name(name) #:nodoc:
-        @quoted_table_names[name] ||= quote_column_name(name).gsub('.', '`.`')
-      end
-
-      def quoted_true
-        QUOTED_TRUE
-      end
-
-      def unquoted_true
-        1
-      end
-
-      def quoted_false
-        QUOTED_FALSE
-      end
-
-      def unquoted_false
-        0
-      end
-
-      def quoted_date(value)
-        if supports_datetime_with_precision?
-          super
-        else
-          super.sub(/\.\d{6}\z/, '')
-        end
       end
 
       # REFERENTIAL INTEGRITY ====================================
@@ -301,9 +266,9 @@ module ActiveRecord
       #   create_database 'matt_development', charset: :big5
       def create_database(name, options = {})
         if options[:collation]
-          execute "CREATE DATABASE `#{name}` DEFAULT CHARACTER SET `#{options[:charset] || 'utf8'}` COLLATE `#{options[:collation]}`"
+          execute "CREATE DATABASE #{quote_table_name(name)} DEFAULT CHARACTER SET #{quote_table_name(options[:charset] || 'utf8')} COLLATE #{quote_table_name(options[:collation])}"
         else
-          execute "CREATE DATABASE `#{name}` DEFAULT CHARACTER SET `#{options[:charset] || 'utf8'}`"
+          execute "CREATE DATABASE #{quote_table_name(name)} DEFAULT CHARACTER SET #{quote_table_name(options[:charset] || 'utf8')}"
         end
       end
 
@@ -312,7 +277,7 @@ module ActiveRecord
       # Example:
       #   drop_database('sebastian_development')
       def drop_database(name) #:nodoc:
-        execute "DROP DATABASE IF EXISTS `#{name}`"
+        execute "DROP DATABASE IF EXISTS #{quote_table_name(name)}"
       end
 
       def current_database
@@ -408,7 +373,7 @@ module ActiveRecord
               mysql_index_type = row[:Index_type].downcase.to_sym
               index_type  = INDEX_TYPES.include?(mysql_index_type)  ? mysql_index_type : nil
               index_using = INDEX_USINGS.include?(mysql_index_type) ? mysql_index_type : nil
-              indexes << IndexDefinition.new(row[:Table], row[:Key_name], row[:Non_unique].to_i == 0, [], [], nil, nil, index_type, index_using)
+              indexes << IndexDefinition.new(row[:Table], row[:Key_name], row[:Non_unique].to_i == 0, [], [], nil, nil, index_type, index_using, row[:Index_comment].presence)
             end
 
             indexes.last.columns << row[:Column_name]
@@ -421,17 +386,24 @@ module ActiveRecord
 
       # Returns an array of +Column+ objects for the table specified by +table_name+.
       def columns(table_name) # :nodoc:
-        sql = "SHOW FULL FIELDS FROM #{quote_table_name(table_name)}"
-        execute_and_free(sql, 'SCHEMA') do |result|
-          each_hash(result).map do |field|
-            type_metadata = fetch_type_metadata(field[:Type], field[:Extra])
-            if type_metadata.type == :datetime && field[:Default] == "CURRENT_TIMESTAMP"
-              new_column(field[:Field], nil, type_metadata, field[:Null] == "YES", field[:Default], field[:Collation])
-            else
-              new_column(field[:Field], field[:Default], type_metadata, field[:Null] == "YES", nil, field[:Collation])
-            end
+        table_name = table_name.to_s
+        column_definitions(table_name).map do |field|
+          type_metadata = fetch_type_metadata(field[:Type], field[:Extra])
+          if type_metadata.type == :datetime && field[:Default] == "CURRENT_TIMESTAMP"
+            default, default_function = nil, field[:Default]
+          else
+            default, default_function = field[:Default], nil
           end
+          new_column(field[:Field], default, type_metadata, field[:Null] == "YES", table_name, default_function, field[:Collation], field[:Comment].presence)
         end
+      end
+
+      def table_comment(table_name)
+        select_value(<<-SQL.strip_heredoc, 'SCHEMA')
+          SELECT table_comment
+          FROM INFORMATION_SCHEMA.TABLES
+          WHERE table_name=#{quote(table_name)};
+        SQL
       end
 
       def create_table(table_name, options = {}) #:nodoc:
@@ -518,8 +490,10 @@ module ActiveRecord
       end
 
       def add_index(table_name, column_name, options = {}) #:nodoc:
-        index_name, index_type, index_columns, _, index_algorithm, index_using = add_index_options(table_name, column_name, options)
-        execute "CREATE #{index_type} INDEX #{quote_column_name(index_name)} #{index_using} ON #{quote_table_name(table_name)} (#{index_columns}) #{index_algorithm}"
+        index_name, index_type, index_columns, _, index_algorithm, index_using, comment = add_index_options(table_name, column_name, options)
+        sql = "CREATE #{index_type} INDEX #{quote_column_name(index_name)} #{index_using} ON #{quote_table_name(table_name)} (#{index_columns}) #{index_algorithm}"
+        sql << " COMMENT #{quote(comment)}" if comment
+        execute sql
       end
 
       def foreign_keys(table_name)
@@ -557,7 +531,12 @@ module ActiveRecord
         raw_table_options = create_table_info.sub(/\A.*\n\) /m, '').sub(/\n\/\*!.*\*\/\n\z/m, '').strip
 
         # strip AUTO_INCREMENT
-        raw_table_options.sub(/(ENGINE=\w+)(?: AUTO_INCREMENT=\d+)/, '\1')
+        raw_table_options.sub!(/(ENGINE=\w+)(?: AUTO_INCREMENT=\d+)/, '\1')
+
+        # strip COMMENT
+        raw_table_options.sub!(/ COMMENT='.+'/, '')
+
+        raw_table_options
       end
 
       # Maps logical Rails types to MySQL-specific data types.
@@ -585,8 +564,7 @@ module ActiveRecord
 
       # SHOW VARIABLES LIKE 'name'
       def show_variable(name)
-        variables = select_all("select @@#{name} as 'Value'", 'SCHEMA')
-        variables.first['Value'] unless variables.empty?
+        select_value("SELECT @@#{name}", 'SCHEMA')
       rescue ActiveRecord::StatementInvalid
         nil
       end
@@ -608,10 +586,10 @@ module ActiveRecord
       end
 
       def case_sensitive_comparison(table, attribute, column, value)
-        if value.nil? || column.case_sensitive?
-          super
-        else
+        if !value.nil? && column.collation && !column.case_sensitive?
           table[attribute].eq(Arel::Nodes::Bin.new(Arel::Nodes::BindParam.new))
+        else
+          super
         end
       end
 
@@ -823,10 +801,6 @@ module ActiveRecord
         subselect.from subsubselect.as('__active_record_temp')
       end
 
-      def mariadb?
-        full_version =~ /mariadb/i
-      end
-
       def supports_rename_index?
         mariadb? ? false : version >= '5.7.6'
       end
@@ -847,9 +821,19 @@ module ActiveRecord
         # Make MySQL reject illegal values rather than truncating or blanking them, see
         # http://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_strict_all_tables
         # If the user has provided another value for sql_mode, don't replace it.
-        unless variables.has_key?('sql_mode') || defaults.include?(@config[:strict])
-          variables['sql_mode'] = strict_mode? ? 'STRICT_ALL_TABLES' : ''
+        if sql_mode = variables.delete('sql_mode')
+          sql_mode = quote(sql_mode)
+        elsif !defaults.include?(strict_mode?)
+          if strict_mode?
+            sql_mode = "CONCAT(@@sql_mode, ',STRICT_ALL_TABLES')"
+          else
+            sql_mode = "REPLACE(@@sql_mode, 'STRICT_TRANS_TABLES', '')"
+            sql_mode = "REPLACE(#{sql_mode}, 'STRICT_ALL_TABLES', '')"
+            sql_mode = "REPLACE(#{sql_mode}, 'TRADITIONAL', '')"
+          end
+          sql_mode = "CONCAT(#{sql_mode}, ',NO_AUTO_VALUE_ON_ZERO')"
         end
+        sql_mode_assignment = "@@SESSION.sql_mode = #{sql_mode}, " if sql_mode
 
         # NAMES does not have an equals sign, see
         # http://dev.mysql.com/doc/refman/5.7/en/set-statement.html#id944430
@@ -871,7 +855,13 @@ module ActiveRecord
         end.compact.join(', ')
 
         # ...and send them all in one query
-        @connection.query  "SET #{encoding} #{variable_assignments}"
+        @connection.query  "SET #{encoding} #{sql_mode_assignment} #{variable_assignments}"
+      end
+
+      def column_definitions(table_name) # :nodoc:
+        execute_and_free("SHOW FULL FIELDS FROM #{quote_table_name(table_name)}", 'SCHEMA') do |result|
+          each_hash(result)
+        end
       end
 
       def extract_foreign_key_action(structure, name, action) # :nodoc:
@@ -891,8 +881,8 @@ module ActiveRecord
         create_table_info_cache[table_name] ||= select_one("SHOW CREATE TABLE #{quote_table_name(table_name)}")["Create Table"]
       end
 
-      def create_table_definition(name, temporary = false, options = nil, as = nil) # :nodoc:
-        MySQL::TableDefinition.new(name, temporary, options, as)
+      def create_table_definition(name, temporary = false, options = nil, as = nil, comment = nil) # :nodoc:
+        MySQL::TableDefinition.new(name, temporary, options, as, comment)
       end
 
       def integer_to_sql(limit) # :nodoc:
@@ -937,8 +927,8 @@ module ActiveRecord
       class MysqlString < Type::String # :nodoc:
         def serialize(value)
           case value
-          when true then "1"
-          when false then "0"
+          when true then MySQL::Quoting::QUOTED_TRUE
+          when false then MySQL::Quoting::QUOTED_FALSE
           else super
           end
         end
@@ -947,8 +937,8 @@ module ActiveRecord
 
         def cast_value(value)
           case value
-          when true then "1"
-          when false then "0"
+          when true then MySQL::Quoting::QUOTED_TRUE
+          when false then MySQL::Quoting::QUOTED_FALSE
           else super
           end
         end

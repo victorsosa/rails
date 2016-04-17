@@ -3,7 +3,7 @@ source 'https://rubygems.org'
 gemspec
 
 # We need a newish Rake since Active Job sets its test tasks' descriptions.
-gem 'rake', '>= 10.3'
+gem 'rake', '>= 11.1'
 
 # This needs to be with require false to ensure correct loading order, as it has to
 # be loaded after loading the test library.
@@ -39,7 +39,7 @@ gem 'listen', '~> 3.0.5', require: false
 
 # Active Job.
 group :job do
-  gem 'resque', require: false
+  gem 'resque', '< 1.26', require: false
   gem 'resque-scheduler', require: false
   gem 'sidekiq', require: false
   gem 'sucker_punch', require: false

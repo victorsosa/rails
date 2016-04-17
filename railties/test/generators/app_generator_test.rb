@@ -65,8 +65,8 @@ class AppGeneratorTest < Rails::Generators::TestCase
   def test_assets
     run_generator
 
-    assert_file("app/views/layouts/application.html.erb", /stylesheet_link_tag\s+'application', media: 'all', 'data-turbolinks-track' => 'reload'/)
-    assert_file("app/views/layouts/application.html.erb", /javascript_include_tag\s+'application', 'data-turbolinks-track' => 'reload'/)
+    assert_file("app/views/layouts/application.html.erb", /stylesheet_link_tag\s+'application', media: 'all', 'data-turbolinks-track': 'reload'/)
+    assert_file("app/views/layouts/application.html.erb", /javascript_include_tag\s+'application', 'data-turbolinks-track': 'reload'/)
     assert_file("app/assets/stylesheets/application.css")
     assert_file("app/assets/javascripts/application.js")
   end
@@ -212,6 +212,20 @@ class AppGeneratorTest < Rails::Generators::TestCase
       quietly { generator.send(:update_config_files) }
       assert_file("#{app_root}/config/initializers/cookies_serializer.rb",
                   /Valid options are :json, :marshal, and :hybrid\.\nRails\.application\.config\.action_dispatch\.cookies_serializer = :marshal/)
+    end
+  end
+
+  def test_rails_update_dont_set_file_watcher
+    app_root = File.join(destination_root, 'myapp')
+    run_generator [app_root]
+
+    stub_rails_application(app_root) do
+      generator = Rails::Generators::AppGenerator.new ["rails"], [], destination_root: app_root, shell: @shell
+      generator.send(:app_const)
+      quietly { generator.send(:update_config_files) }
+      assert_file "#{app_root}/config/environments/development.rb" do |content|
+        assert_match(/# config.file_watcher/, content)
+      end
     end
   end
 

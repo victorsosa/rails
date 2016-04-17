@@ -106,6 +106,7 @@ module ActiveRecord
         @schema_cache        = SchemaCache.new self
         @visitor             = nil
         @prepared_statements = false
+        @quoted_column_names, @quoted_table_names = {}, {}
       end
 
       class Version
@@ -277,6 +278,16 @@ module ActiveRecord
         false
       end
 
+      # Does adapter supports comments on database objects (tables, columns, indexes)?
+      def supports_comments?
+        false
+      end
+
+      # Can comments for tables, columns, and indexes be specified in create/alter table statements?
+      def supports_comments_in_create?
+        false
+      end
+
       # This is meant to be implemented by the adapters that support extensions
       def disable_extension(name)
       end
@@ -420,8 +431,8 @@ module ActiveRecord
         end
       end
 
-      def new_column(name, default, sql_type_metadata = nil, null = true, default_function = nil, collation = nil)
-        Column.new(name, default, sql_type_metadata, null, default_function, collation)
+      def new_column(name, default, sql_type_metadata, null, table_name, default_function = nil, collation = nil) # :nodoc:
+        Column.new(name, default, sql_type_metadata, null, table_name, default_function, collation)
       end
 
       def lookup_cast_type(sql_type) # :nodoc:

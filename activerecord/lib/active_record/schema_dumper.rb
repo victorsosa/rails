@@ -104,10 +104,7 @@ HEADER
       end
 
       def table(table, stream)
-        columns = @connection.columns(table).map do |column|
-          column.instance_variable_set(:@table_name, table)
-          column
-        end
+        columns = @connection.columns(table)
         begin
           tbl = StringIO.new
 
@@ -126,7 +123,7 @@ HEADER
             tbl.print ", primary_key: #{pk.inspect}" unless pk == 'id'
             pkcol = columns.detect { |c| c.name == pk }
             pkcolspec = @connection.column_spec_for_primary_key(pkcol)
-            if pkcolspec
+            if pkcolspec.present?
               pkcolspec.each do |key, value|
                 tbl.print ", #{key}: #{value}"
               end
@@ -140,6 +137,9 @@ HEADER
 
           table_options = @connection.table_options(table)
           tbl.print ", options: #{table_options.inspect}" unless table_options.blank?
+
+          comment = @connection.table_comment(table)
+          tbl.print ", comment: #{comment.inspect}" if comment
 
           tbl.puts " do |t|"
 
@@ -212,6 +212,7 @@ HEADER
             statement_parts << "where: #{index.where.inspect}" if index.where
             statement_parts << "using: #{index.using.inspect}" if index.using
             statement_parts << "type: #{index.type.inspect}" if index.type
+            statement_parts << "comment: #{index.comment.inspect}" if index.comment
 
             "  #{statement_parts.join(', ')}"
           end

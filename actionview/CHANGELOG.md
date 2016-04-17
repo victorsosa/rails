@@ -1,3 +1,9 @@
+*   Deprecate `datetime_field` and `datetime_field_tag` helpers.
+    Datetime input type was removed from HTML specification.
+    One can use `datetime_local_field` and `datetime_local_field_tag` instead.
+
+    *Wojciech Wnętrzak*
+
 *   Added log "Rendering ...", when starting to render a template to log that
     we have started rendering something. This helps to easily identify the origin
     of queries in the log whether they came from controller or views.
@@ -44,7 +50,7 @@
 
 *   Create a new `ActiveSupport::SafeBuffer` instance when `content_for` is flushed.
 
-    Fixes #19890
+    Fixes #19890.
 
     *Yoong Kang Lim*
 

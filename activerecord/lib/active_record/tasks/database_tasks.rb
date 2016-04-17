@@ -159,6 +159,7 @@ module ActiveRecord
         Migrator.migrate(migrations_paths, version) do |migration|
           scope.blank? || scope == migration.scope
         end
+        ActiveRecord::Base.clear_cache!
       ensure
         Migration.verbose = verbose_was
       end
@@ -282,8 +283,7 @@ module ActiveRecord
 
       def each_current_configuration(environment)
         environments = [environment]
-        # add test environment only if no RAILS_ENV was specified.
-        environments << 'test' if environment == 'development' && ENV['RAILS_ENV'].nil?
+        environments << 'test' if environment == 'development'
 
         configurations = ActiveRecord::Base.configurations.values_at(*environments)
         configurations.compact.each do |configuration|

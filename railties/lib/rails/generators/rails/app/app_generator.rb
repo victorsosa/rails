@@ -98,6 +98,8 @@ module Rails
 
       config
 
+      gsub_file 'config/environments/development.rb', /^(\s+)config\.file_watcher/, '\1# config.file_watcher'
+
       unless callback_terminator_config_exist
         remove_file 'config/initializers/callback_terminator.rb'
       end

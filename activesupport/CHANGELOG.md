@@ -1,8 +1,46 @@
+*   Fix behavior of JSON encoding for `Exception`.
+
+    *namusyaka*
+
+*   Make `number_to_phone` format number with regexp pattern.
+
+        number_to_phone(18812345678, pattern: /(\d{3})(\d{4})(\d{4})/)
+        # => 188-1234-5678
+
+    *Pan Gaoyong*
+
+*   Match `String#to_time`'s behaviour to that of ruby's implementation for edge cases.
+
+    `nil` is now returned instead of the current date if the string provided does
+    contain time information, but none that is used to build the `Time` object.
+
+    Fixes #22958.
+
+    *Siim Liiser*
+
+*   Rely on the native DateTime#<=> implementation to handle non-datetime like
+    objects instead of returning `nil` ourselves. This restores the ability
+    of `DateTime` instances to be compared with a `Numeric` that represents an
+    astronomical julian day number.
+
+    Fixes #24228.
+
+    *Andrew White*
+
+*   Add `String#upcase_first` method.
+
+    *Glauco Custódio*, *bogdanvlviv*
+
+*   Prevent `Marshal.load` from looping infinitely when trying to autoload a constant
+    which resolves to a different name.
+
+    *Olek Janiszewski*
+
 *   Deprecate `Module.local_constants`. Please use `Module.constants(false)` instead.
 
     *Yuichiro Kaneko*
 
-*   Publish ActiveSupport::Executor and ActiveSupport::Reloader APIs to allow
+*   Publish `ActiveSupport::Executor` and `ActiveSupport::Reloader` APIs to allow
     components and libraries to manage, and participate in, the execution of
     application code, and the application reloading process.
 
@@ -20,7 +58,7 @@
 
     *Tara Scherner de la Fuente*
 
-*   Make `benchmark('something', silence: true)` actually work
+*   Make `benchmark('something', silence: true)` actually work.
 
     *DHH*
 
@@ -39,9 +77,10 @@
 
     *Jon Moss*
 
+
 ## Rails 5.0.0.beta2 (February 01, 2016) ##
 
-*   Change number_to_currency behavior for checking negativity.
+*   Change `number_to_currency` behavior for checking negativity.
 
     Used `to_f.negative` instead of using `to_f.phase` for checking negativity
     of a number in number_to_currency helper.
@@ -75,6 +114,7 @@
 *   Add petabyte and exabyte numeric conversion.
 
     *Akshay Vishnoi*
+
 
 ## Rails 5.0.0.beta1 (December 18, 2015) ##
 

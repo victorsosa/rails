@@ -44,7 +44,7 @@ TIP: Ruby 1.8.7 p248 and p249 have marshaling bugs that crash Rails. Ruby Enterp
 
 ### The Task
 
-Rails provides the `app:update` task. After updating the Rails version
+Rails provides the `app:update` task (`rails:update` on 4.2 and earlier). After updating the Rails version
 in the Gemfile, run this task.
 This will help you with the creation of new files and changes of old files in an
 interactive session.
@@ -70,7 +70,8 @@ Upgrading from Rails 4.2 to Rails 5.0
 
 ### Ruby 2.2.2+
 
-ToDo...
+From Ruby on Rails 5.0 onwards, Ruby 2.2.2+ is the only supported version. 
+Make sure you are on Ruby 2.2.2 version or greater, before you proceed. 
 
 ### Active Record models now inherit from ApplicationRecord by default
 
@@ -417,7 +418,7 @@ secrets, you need to:
 
 3. Remove the `secret_token.rb` initializer.
 
-4. Use `rails secret` to generate new keys for the `development` and `test` sections.
+4. Use `rake secret` to generate new keys for the `development` and `test` sections.
 
 5. Restart your server.
 

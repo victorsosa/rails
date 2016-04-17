@@ -29,6 +29,18 @@ rvm:
   - 2.3.0
   - ruby-head
 matrix:
+  include:
+    # Latest compiled version in http://rubies.travis-ci.org
+    - rvm: 2.3.0
+      env:
+        - "GEM=ar:mysql2"
+      addons:
+        mariadb: 10.0
+    - rvm: jruby-9.0.5.0
+      jdk: oraclejdk8
+      env:
+        - "JRUBY_OPTS='--dev -J-Xmx1024M'"
+        - "GEM='ap'"
   allow_failures:
     - rvm: ruby-head
   fast_finish: true
