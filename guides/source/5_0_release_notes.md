@@ -585,6 +585,9 @@ Please refer to the [Changelog][active-record] for detailed changes.
 *   Added ActiveRecord `#second_to_last` and `#third_to_last` methods.
     ([Pull Request](https://github.com/rails/rails/pull/23583))
 
+*  Added ability to annotate database objects (tables, columns, indexes)
+   with comments stored in database metadata for PostgreSQL & MySQL.
+   ([Pull Request](https://github.com/rails/rails/pull/22911))
 
 Active Model
 ------------
@@ -820,6 +823,9 @@ Please refer to the [Changelog][active-support] for detailed changes.
     components and libraries to manage, and participate in, the execution of
     application code, and the application reloading process.
     ([Pull Request](https://github.com/rails/rails/pull/23807))
+
+*   `ActiveSupport::Duration` now supports ISO8601 formatting and parsing.
+    ([Pull Request](https://github.com/rails/rails/pull/16917))
 
 
 Credits

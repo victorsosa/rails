@@ -1,3 +1,75 @@
+*   Schema dumper: Indexes are now included in the `create_table` block
+    instead of listed afterward as separate `add_index` lines.
+
+    This tidies up schema.rb and makes it easy to read as a list of tables.
+
+    Bonus: Allows databases that support it (MySQL) to perform as single
+    `CREATE TABLE` query, no additional query per index.
+
+    *Ryuta Kamizono*
+
+*   SQLite: Fix uniqueness validation when values exceed the column limit.
+
+    SQLite doesn't impose length restrictions on strings, BLOBs, or numeric
+    values. It treats them as helpful metadata. When we truncate strings
+    before checking uniqueness, we'd miss values that exceed the column limit.
+
+    Other databases enforce length limits. A large value will pass uniqueness
+    validation since the column limit guarantees no value that long exists.
+    When we insert the row, it'll raise `ActiveRecord::ValueTooLong` as we
+    expect.
+
+    This fixes edge-case incorrect validation failures for values that exceed
+    the column limit but are identical to an existing value *when truncated*.
+    Now these will pass validation and raise an exception.
+
+    *Ryuta Kamizono*
+
+*   Raise `ActiveRecord::ValueTooLong` when column limits are exceeded.
+    Supported by MySQL and PostgreSQL adapters.
+
+    *Ryuta Kamizono*
+
+*   Migrations: `#foreign_key` respects `table_name_prefix` and `_suffix`.
+
+    *Ryuta Kamizono*
+
+*   SQLite: Force NOT NULL primary keys.
+
+    From SQLite docs: https://www.sqlite.org/lang_createtable.html
+        According to the SQL standard, PRIMARY KEY should always imply NOT
+        NULL. Unfortunately, due to a bug in some early versions, this is not
+        the case in SQLite. Unless the column is an INTEGER PRIMARY KEY or the
+        table is a WITHOUT ROWID table or the column is declared NOT NULL,
+        SQLite allows NULL values in a PRIMARY KEY column. SQLite could be
+        fixed to conform to the standard, but doing so might break legacy
+        applications. Hence, it has been decided to merely document the fact
+        that SQLite allowing NULLs in most PRIMARY KEY columns.
+
+    Now we override column options to explicitly set NOT NULL rather than rely
+    on implicit NOT NULL like MySQL and PostgreSQL adapters.
+
+    *Ryuta Kamizono*
+
+*   Added notice when a database is successfully created or dropped.
+
+    Example:
+
+        $ bin/rails db:create
+        Created database 'blog_development'
+        Created database 'blog_test'
+
+        $ bin/rails db:drop
+        Dropped database 'blog_development'
+        Dropped database 'blog_test'
+
+    Changed older notices
+    `blog_development already exists` to `Database 'blog_development' already exists`.
+    and
+    `Couldn't drop blog_development` to `Couldn't drop database 'blog_development'`.
+
+    *bogdanvlviv*
+
 *   Database comments. Annotate database objects (tables, columns, indexes)
     with comments stored in database metadata. PostgreSQL & MySQL support.
 
@@ -10,7 +82,7 @@
     *Andrey Novikov*
 
 *   Add `quoted_time` for truncating the date part of a TIME column value.
-    This fixes queries on TIME column on MariaDB, as it doesn't ignore the 
+    This fixes queries on TIME column on MariaDB, as it doesn't ignore the
     date part of the string when it coerces to time.
 
     *Ryuta Kamizono*

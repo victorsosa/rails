@@ -1,3 +1,81 @@
+*   `ActiveSupport::TimeZone.country_zones(country_code)` looks up the
+    country's time zones by its two-letter ISO3166 country code, e.g.
+
+        >> ActiveSupport::TimeZone.country_zones(:jp).map(&:to_s)
+        => ["(GMT+09:00) Osaka"]
+
+        >> ActiveSupport::TimeZone.country_zones(:uy).map(&:to_s)
+        => ["(GMT-03:00) Montevideo"]
+
+    *Andrey Novikov*
+
+*   `Array#sum` compat with Ruby 2.4's native method.
+
+    Ruby 2.4 introduces `Array#sum`, but it only supports numeric elements,
+    breaking our `Enumerable#sum` which supports arbitrary `Object#+`.
+    To fix, override `Array#sum` with our compatible implementation.
+
+    Native Ruby 2.4:
+
+        %w[ a b ].sum
+        # => TypeError: String can't be coerced into Fixnum
+
+    With `Enumerable#sum` shim:
+
+        %w[ a b ].sum
+        # => 'ab'
+
+    We tried shimming the fast path and falling back to the compatible path
+    if it fails, but that ends up slower even in simple cases due to the cost
+    of exception handling. Our only choice is to override the native `Array#sum`
+    with our `Enumerable#sum`.
+
+    *Jeremy Daer*
+
+*   `ActiveSupport::Duration` supports ISO8601 formatting and parsing.
+
+        ActiveSupport::Duration.parse('P3Y6M4DT12H30M5S')
+        # => 3 years, 6 months, 4 days, 12 hours, 30 minutes, and 5 seconds
+
+        (3.years + 3.days).iso8601
+        # => "P3Y3D"
+
+    Inspired by Arnau Siches' [ISO8601 gem](https://github.com/arnau/ISO8601/)
+    and rewritten by Andrey Novikov with suggestions from Andrew White. Test
+    data from the ISO8601 gem redistributed under MIT license.
+
+    (Will be used to support the PostgreSQL interval data type.)
+
+    *Andrey Novikov*, *Arnau Siches*, *Andrew White*
+
+*   `Cache#fetch(key, force: true)` forces a cache miss, so it must be called
+    with a block to provide a new value to cache. Fetching with `force: true`
+    but without a block now raises ArgumentError.
+
+        cache.fetch('key', force: true) # => ArgumentError
+
+    *Santosh Wadghule*
+
+*   `ActiveSupport::Duration` supports weeks and hours.
+
+        [1.hour.inspect, 1.hour.value, 1.hour.parts]
+        # => ["3600 seconds", 3600, [[:seconds, 3600]]]   # Before
+        # => ["1 hour", 3600, [[:hours, 1]]]              # After
+
+        [1.week.inspect, 1.week.value, 1.week.parts]
+        # => ["7 days", 604800, [[:days, 7]]]             # Before
+        # => ["1 week", 604800, [[:weeks, 1]]]            # After
+
+    This brings us into closer conformance with ISO8601 and relieves some
+    astonishment about getting `1.hour.inspect # => 3600 seconds`.
+
+    Compatibility: The duration's `value` remains the same, so apps using
+    durations are oblivious to the new time periods. Apps, libraries, and
+    plugins that work with the internal `parts` hash will need to broaden
+    their time period handling to cover hours & weeks.
+
+    *Andrey Novikov*
+
 *   Fix behavior of JSON encoding for `Exception`.
 
     *namusyaka*

@@ -125,6 +125,10 @@ module ActiveRecord
         PostgreSQL::SchemaCreation.new self
       end
 
+      def arel_visitor # :nodoc:
+        Arel::Visitors::PostgreSQL.new(self)
+      end
+
       # Returns true, since this connection adapter supports prepared statement
       # caching.
       def supports_statement_cache?
@@ -163,6 +167,10 @@ module ActiveRecord
         true
       end
 
+      def supports_comments_in_create?
+        false
+      end
+
       def index_algorithms
         { concurrently: 'CONCURRENTLY' }
       end
@@ -198,14 +206,6 @@ module ActiveRecord
       # Initializes and connects a PostgreSQL adapter.
       def initialize(connection, logger, connection_parameters, config)
         super(connection, logger, config)
-
-        @visitor = Arel::Visitors::PostgreSQL.new self
-        if self.class.type_cast_config_to_boolean(config.fetch(:prepared_statements) { true })
-          @prepared_statements = true
-          @visitor.extend(DetermineIfPreparableVisitor)
-        else
-          @prepared_statements = false
-        end
 
         @connection_parameters = connection_parameters
 
@@ -402,6 +402,7 @@ module ActiveRecord
       protected
 
         # See http://www.postgresql.org/docs/current/static/errcodes-appendix.html
+        VALUE_LIMIT_VIOLATION = "22001"
         FOREIGN_KEY_VIOLATION = "23503"
         UNIQUE_VIOLATION      = "23505"
 
@@ -413,6 +414,8 @@ module ActiveRecord
             RecordNotUnique.new(message)
           when FOREIGN_KEY_VIOLATION
             InvalidForeignKey.new(message)
+          when VALUE_LIMIT_VIOLATION
+            ValueTooLong.new(message)
           else
             super
           end
@@ -751,8 +754,8 @@ module ActiveRecord
           $1.strip if $1
         end
 
-        def create_table_definition(name, temporary = false, options = nil, as = nil, comment = nil) # :nodoc:
-          PostgreSQL::TableDefinition.new(name, temporary, options, as, comment)
+        def create_table_definition(*args) # :nodoc:
+          PostgreSQL::TableDefinition.new(*args)
         end
 
         def can_perform_case_insensitive_comparison_for?(column)
