@@ -52,7 +52,6 @@ module ActiveRecord
       ADAPTER_NAME = 'SQLite'.freeze
 
       include SQLite3::Quoting
-      include Savepoints
 
       NATIVE_DATABASE_TYPES = {
         primary_key:  'INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL',
@@ -88,7 +87,7 @@ module ActiveRecord
         super(connection, logger, config)
 
         @active     = nil
-        @statements = StatementPool.new(self.class.type_cast_config_to_integer(config.fetch(:statement_limit) { 1000 }))
+        @statements = StatementPool.new(self.class.type_cast_config_to_integer(config[:statement_limit]))
       end
 
       def supports_ddl_transactions?
@@ -130,6 +129,10 @@ module ActiveRecord
         true
       end
 
+      def supports_multi_insert?
+        sqlite_version >= '3.7.11'
+      end
+
       def active?
         @active != false
       end
@@ -148,6 +151,10 @@ module ActiveRecord
       end
 
       def supports_index_sort_order?
+        true
+      end
+
+      def valid_type?(type)
         true
       end
 
@@ -223,10 +230,6 @@ module ActiveRecord
 
       def execute(sql, name = nil) #:nodoc:
         log(sql, name) { @connection.execute(sql) }
-      end
-
-      def select_rows(sql, name = nil, binds = [])
-        exec_query(sql, name, binds).rows
       end
 
       def begin_db_transaction #:nodoc:
@@ -538,7 +541,7 @@ module ActiveRecord
           result = exec_query(sql, 'SCHEMA').first
 
           if result
-            # Splitting with left parantheses and picking up last will return all
+            # Splitting with left parentheses and picking up last will return all
             # columns separated with comma(,).
             columns_string = result["sql"].split('(').last
 

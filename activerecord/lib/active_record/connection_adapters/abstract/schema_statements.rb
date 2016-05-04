@@ -342,12 +342,13 @@ module ActiveRecord
 
         column_options = options.delete(:column_options) || {}
         column_options.reverse_merge!(null: false)
+        type = column_options.delete(:type) || :integer
 
         t1_column, t2_column = [table_1, table_2].map{ |t| t.to_s.singularize.foreign_key }
 
         create_table(join_table_name, options.merge!(id: false)) do |td|
-          td.integer t1_column, column_options
-          td.integer t2_column, column_options
+          td.send type, t1_column, column_options
+          td.send type, t2_column, column_options
           yield td if block_given?
         end
       end
@@ -984,11 +985,23 @@ module ActiveRecord
       end
 
       def dump_schema_information #:nodoc:
+        versions = ActiveRecord::SchemaMigration.order('version').pluck(:version)
+        insert_versions_sql(versions)
+      end
+
+      def insert_versions_sql(versions) # :nodoc:
         sm_table = ActiveRecord::Migrator.schema_migrations_table_name
 
-        sql = "INSERT INTO #{sm_table} (version) VALUES "
-        sql << ActiveRecord::SchemaMigration.order('version').pluck(:version).map {|v| "('#{v}')" }.join(', ')
-        sql << ";\n\n"
+        if supports_multi_insert?
+          sql = "INSERT INTO #{sm_table} (version) VALUES "
+          sql << versions.map {|v| "('#{v}')" }.join(', ')
+          sql << ";\n\n"
+          sql
+        else
+          versions.map { |version|
+            "INSERT INTO #{sm_table} (version) VALUES ('#{version}');"
+          }.join "\n\n"
+        end
       end
 
       # Should not be called normally, but this operation is non-destructive.
@@ -1025,7 +1038,7 @@ module ActiveRecord
           if (duplicate = inserting.detect {|v| inserting.count(v) > 1})
             raise "Duplicate migration #{duplicate}. Please renumber your migrations to resolve the conflict."
           end
-          execute "INSERT INTO #{sm_table} (version) VALUES #{inserting.map {|v| "('#{v}')"}.join(', ') }"
+          execute insert_versions_sql(inserting)
         end
       end
 
@@ -1097,15 +1110,19 @@ module ActiveRecord
         Table.new(table_name, base)
       end
 
-      def add_index_options(table_name, column_name, comment: nil, **options) #:nodoc:
-        column_names = Array(column_name)
+      def add_index_options(table_name, column_name, comment: nil, **options) # :nodoc:
+        if column_name.is_a?(String) && /\W/ === column_name
+          column_names = column_name
+        else
+          column_names = Array(column_name)
+        end
 
         options.assert_valid_keys(:unique, :order, :name, :where, :length, :internal, :using, :algorithm, :type)
 
         index_type = options[:type].to_s if options.key?(:type)
         index_type ||= options[:unique] ? "UNIQUE" : ""
         index_name = options[:name].to_s if options.key?(:name)
-        index_name ||= index_name(table_name, column: column_names)
+        index_name ||= index_name(table_name, index_name_options(column_names))
         max_index_length = options.fetch(:internal, false) ? index_name_length : allowed_index_name_length
 
         if options.key?(:algorithm)
@@ -1161,6 +1178,8 @@ module ActiveRecord
 
         # Overridden by the MySQL adapter for supporting index lengths
         def quoted_columns_for_index(column_names, options = {})
+          return [column_names] if column_names.is_a?(String)
+
           option_strings = Hash[column_names.map {|name| [name, '']}]
 
           # add index sort order if supported
@@ -1172,6 +1191,8 @@ module ActiveRecord
         end
 
         def index_name_for_remove(table_name, options = {})
+          return options[:name] if can_remove_index_by_name?(options)
+
           # if the adapter doesn't support the indexes call the best we can do
           # is return the default index name for the options provided
           return index_name(table_name, options) unless respond_to?(:indexes)
@@ -1179,7 +1200,7 @@ module ActiveRecord
           checks = []
 
           if options.is_a?(Hash)
-            checks << lambda { |i| i.name == options[:name].to_s } if options.has_key?(:name)
+            checks << lambda { |i| i.name == options[:name].to_s } if options.key?(:name)
             column_names = Array(options[:column]).map(&:to_s)
           else
             column_names = Array(options).map(&:to_s)
@@ -1234,6 +1255,14 @@ module ActiveRecord
         AlterTable.new create_table_definition(name)
       end
 
+      def index_name_options(column_names) # :nodoc:
+        if column_names.is_a?(String)
+          column_names = column_names.scan(/\w+/).join('_')
+        end
+
+        { column: column_names }
+      end
+
       def foreign_key_name(table_name, options) # :nodoc:
         identifier = "#{table_name}_#{options.fetch(:column)}_fk"
         hashed_identifier = Digest::SHA256.hexdigest(identifier).first(10)
@@ -1254,6 +1283,10 @@ module ActiveRecord
         else
           default_or_changes
         end
+      end
+
+      def can_remove_index_by_name?(options)
+        options.is_a?(Hash) && options.key?(:name) && options.except(:name, :algorithm).empty?
       end
     end
   end

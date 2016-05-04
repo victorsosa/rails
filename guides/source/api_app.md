@@ -179,7 +179,7 @@ To render debugging information preserving the response format, use the value `:
 config.debug_exception_response_format = :api
 ```
 
-By default, `config.debug_exception_response_format` is set to `:api`.
+By default, `config.debug_exception_response_format` is set to `:api`, when `config.api_only` is set to true.
 
 Finally, inside `app/controllers/application_controller.rb`, instead of:
 
@@ -202,7 +202,7 @@ An API application comes with the following middleware by default:
 
 - `Rack::Sendfile`
 - `ActionDispatch::Static`
-- `ActionDispatch::LoadInterlock`
+- `ActionDispatch::Executor`
 - `ActiveSupport::Cache::Strategy::LocalCache::Middleware`
 - `Rack::Runtime`
 - `ActionDispatch::RequestId`
@@ -409,7 +409,7 @@ Some common modules you might want to add:
   and translation methods.
 - `ActionController::HttpAuthentication::Basic` (or `Digest` or `Token`): Support
   for basic, digest or token HTTP authentication.
-- `AbstractController::Layouts`: Support for layouts when rendering.
+- `ActionView::Layouts`: Support for layouts when rendering.
 - `ActionController::MimeResponds`: Support for `respond_to`.
 - `ActionController::Cookies`: Support for `cookies`, which includes
   support for signed and encrypted cookies. This requires the cookies middleware.

@@ -227,6 +227,9 @@ Please refer to the [Changelog][action-pack] for detailed changes.
     `RedirectBackError`.
     ([Pull Request](https://github.com/rails/rails/pull/22506))
 
+*   `ActionDispatch::IntegrationTest` and `ActionController::TestCase` deprecate positional arguments in favor of
+    keyword arguments. ([Pull Request](https://github.com/rails/rails/pull/18323))
+
 ### Notable changes
 
 *   Added `ActionController::Renderer` to render arbitrary templates
@@ -313,12 +316,19 @@ Please refer to the [Changelog][action-view] for detailed changes.
     supported by I18n.
     ([Pull Request](https://github.com/rails/rails/pull/20019))
 
+### Deprecations
+
+*   Deprecated `datetime_field` and `datetime_field_tag` helpers.
+    Datetime input type was removed from HTML specification.
+    One can use `datetime_local_field` and `datetime_local_field_tag` instead.
+    ([Pull Request](https://github.com/rails/rails/pull/24385))
+
 ### Notable Changes
 
 *   Changed the default template handler from `ERB` to `Raw`.
     ([commit](https://github.com/rails/rails/commit/4be859f0fdf7b3059a28d03c279f03f5938efc80))
 
-*   Collection rendering can cache and fetches multiple partials.
+*   Collection rendering can cache and fetches multiple partials at once.
     ([Pull Request](https://github.com/rails/rails/pull/18948),
     [commit](https://github.com/rails/rails/commit/e93f0f0f133717f9b06b1eaefd3442bd0ff43985))
 
@@ -328,10 +338,6 @@ Please refer to the [Changelog][action-view] for detailed changes.
 *   Make `disable_with` the default behavior for submit tags. Disables the
     button on submit to prevent double submits.
     ([Pull Request](https://github.com/rails/rails/pull/21135))
-
-*   Collection rendering can cache and fetch multiple partials at once.
-    ([Pull Request](https://github.com/rails/rails/pull/21135))
-
 
 Action Mailer
 -------------
@@ -498,10 +504,6 @@ Please refer to the [Changelog][active-record] for detailed changes.
 *   Added `#cache_key` to `ActiveRecord::Relation`.
     ([Pull Request](https://github.com/rails/rails/pull/20884))
 
-*   Require `belongs_to` by default.
-    ([Pull Request](https://github.com/rails/rails/pull/18937)) - Deprecate
-    `required` option in favor of `optional` for `belongs_to`
-
 *   Changed the default `null` value for `timestamps` to `false`.
     ([commit](https://github.com/rails/rails/commit/a939506f297b667291480f26fa32a373a18ae06a))
 
@@ -530,7 +532,8 @@ Please refer to the [Changelog][active-record] for detailed changes.
 
 *   `belongs_to` will now trigger a validation error by default if the
     association is not present. You can turn this off on a per-association basis
-    with `optional: true`.
+    with `optional: true`. Also deprecate `required` option in favor of `optional`
+    for `belongs_to`.
     ([Pull Request](https://github.com/rails/rails/pull/18937))
 
 *   Added `config.active_record.dump_schemas` to configure the behavior of
@@ -585,9 +588,14 @@ Please refer to the [Changelog][active-record] for detailed changes.
 *   Added ActiveRecord `#second_to_last` and `#third_to_last` methods.
     ([Pull Request](https://github.com/rails/rails/pull/23583))
 
-*  Added ability to annotate database objects (tables, columns, indexes)
-   with comments stored in database metadata for PostgreSQL & MySQL.
-   ([Pull Request](https://github.com/rails/rails/pull/22911))
+*   Added ability to annotate database objects (tables, columns, indexes)
+    with comments stored in database metadata for PostgreSQL & MySQL.
+    ([Pull Request](https://github.com/rails/rails/pull/22911))
+
+*   Added prepared statements support to `mysql2` adapter, for mysql2 0.4.4+, 
+    Previously this was only supported on the deprecated `mysql` legacy adapter. 
+    To enable, set `prepared_statements: true` in config/database.yml.
+    ([Pull Request](https://github.com/rails/rails/pull/23461))        
 
 Active Model
 ------------
@@ -647,10 +655,14 @@ Please refer to the [Changelog][active-job] for detailed changes.
 
 ### Notable changes
 
-*   `ActiveJob::Base.deserialize` delegates to the job class. this allows jobs
+*   `ActiveJob::Base.deserialize` delegates to the job class. This allows jobs
     to attach arbitrary metadata when they get serialized and read it back when
     they get performed.
     ([Pull Request](https://github.com/rails/rails/pull/18260))
+
+*   Add ability to configure the queue adapter on a per job basis without
+    affecting each other.
+    ([Pull Request](https://github.com/rails/rails/pull/16992))
 
 *   A generated job now inherits from `app/jobs/application_job.rb` by default.
     ([Pull Request](https://github.com/rails/rails/pull/19034))

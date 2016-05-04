@@ -16,8 +16,6 @@ require "active_record/connection_adapters/postgresql/type_metadata"
 require "active_record/connection_adapters/postgresql/utils"
 require "active_record/connection_adapters/statement_pool"
 
-require 'ipaddr'
-
 module ActiveRecord
   module ConnectionHandling # :nodoc:
     # Establishes a connection to the database that's used by all Active Record objects
@@ -119,7 +117,6 @@ module ActiveRecord
       include PostgreSQL::SchemaStatements
       include PostgreSQL::DatabaseStatements
       include PostgreSQL::ColumnDumper
-      include Savepoints
 
       def schema_creation # :nodoc:
         PostgreSQL::SchemaCreation.new self
@@ -140,6 +137,10 @@ module ActiveRecord
       end
 
       def supports_partial_index?
+        true
+      end
+
+      def supports_expression_index?
         true
       end
 
@@ -167,8 +168,8 @@ module ActiveRecord
         true
       end
 
-      def supports_comments_in_create?
-        false
+      def supports_savepoints?
+        true
       end
 
       def index_algorithms
@@ -216,7 +217,7 @@ module ActiveRecord
         connect
         add_pg_encoders
         @statements = StatementPool.new @connection,
-                                        self.class.type_cast_config_to_integer(config.fetch(:statement_limit) { 1000 })
+                                        self.class.type_cast_config_to_integer(config[:statement_limit])
 
         if postgresql_version < 90100
           raise "Your version of PostgreSQL (#{postgresql_version}) is too old. Active Record supports PostgreSQL >= 9.1."

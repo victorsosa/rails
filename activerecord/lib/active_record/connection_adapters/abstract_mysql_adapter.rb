@@ -1,4 +1,5 @@
 require 'active_record/connection_adapters/abstract_adapter'
+require 'active_record/connection_adapters/statement_pool'
 require 'active_record/connection_adapters/mysql/column'
 require 'active_record/connection_adapters/mysql/explain_pretty_printer'
 require 'active_record/connection_adapters/mysql/quoting'
@@ -14,13 +15,12 @@ module ActiveRecord
     class AbstractMysqlAdapter < AbstractAdapter
       include MySQL::Quoting
       include MySQL::ColumnDumper
-      include Savepoints
 
       def update_table_definition(table_name, base) # :nodoc:
         MySQL::Table.new(table_name, base)
       end
 
-      def schema_creation
+      def schema_creation # :nodoc:
         MySQL::SchemaCreation.new(self)
       end
 
@@ -56,8 +56,16 @@ module ActiveRecord
       INDEX_TYPES  = [:fulltext, :spatial]
       INDEX_USINGS = [:btree, :hash]
 
+      class StatementPool < ConnectionAdapters::StatementPool
+        private def dealloc(stmt)
+          stmt[:stmt].close
+        end
+      end
+
       def initialize(connection, logger, connection_options, config)
         super(connection, logger, config)
+
+        @statements = StatementPool.new(self.class.type_cast_config_to_integer(config[:statement_limit]))
 
         if version < '5.0.0'
           raise "Your version of MySQL (#{full_version.match(/^\d+\.\d+\.\d+/)[0]}) is too old. Active Record supports MySQL >= 5.0."
@@ -90,6 +98,12 @@ module ActiveRecord
       end
 
       def supports_bulk_alter? #:nodoc:
+        true
+      end
+
+      # Returns true, since this connection adapter supports prepared statement
+      # caching.
+      def supports_statement_cache?
         true
       end
 
@@ -178,6 +192,14 @@ module ActiveRecord
         end
       end
 
+      # CONNECTION MANAGEMENT ====================================
+
+      # Clears the prepared statements cache.
+      def clear_cache!
+        reload_type_map
+        @statements.clear
+      end
+
       #--
       # DATABASE STATEMENTS ======================================
       #++
@@ -189,11 +211,6 @@ module ActiveRecord
         elapsed = Time.now - start
 
         MySQL::ExplainPrettyPrinter.new.pp(result, elapsed)
-      end
-
-      def clear_cache!
-        super
-        reload_type_map
       end
 
       # Executes the SQL statement in the context of this connection.
@@ -485,8 +502,12 @@ module ActiveRecord
       def add_index(table_name, column_name, options = {}) #:nodoc:
         index_name, index_type, index_columns, _, index_algorithm, index_using, comment = add_index_options(table_name, column_name, options)
         sql = "CREATE #{index_type} INDEX #{quote_column_name(index_name)} #{index_using} ON #{quote_table_name(table_name)} (#{index_columns}) #{index_algorithm}"
+        execute add_sql_comment!(sql, comment)
+      end
+
+      def add_sql_comment!(sql, comment) # :nodoc:
         sql << " COMMENT #{quote(comment)}" if comment
-        execute sql
+        sql
       end
 
       def foreign_keys(table_name)

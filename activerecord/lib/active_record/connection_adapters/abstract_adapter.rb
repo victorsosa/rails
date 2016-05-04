@@ -67,6 +67,7 @@ module ActiveRecord
       include QueryCache
       include ActiveSupport::Callbacks
       include ColumnDumper
+      include Savepoints
 
       SIMPLE_INT = /\A\d+\z/
 
@@ -153,7 +154,7 @@ module ActiveRecord
       end
 
       def valid_type?(type)
-        true
+        false
       end
 
       def schema_creation
@@ -247,6 +248,11 @@ module ActiveRecord
         false
       end
 
+      # Does this adapter support expression indices?
+      def supports_expression_index?
+        false
+      end
+
       # Does this adapter support explain?
       def supports_explain?
         false
@@ -296,6 +302,11 @@ module ActiveRecord
       # Can comments for tables, columns, and indexes be specified in create/alter table statements?
       def supports_comments_in_create?
         false
+      end
+
+      # Does this adapter support multi-value insert?
+      def supports_multi_insert?
+        true
       end
 
       # This is meant to be implemented by the adapters that support extensions
@@ -399,12 +410,6 @@ module ActiveRecord
         @connection
       end
 
-      def create_savepoint(name = nil)
-      end
-
-      def release_savepoint(name = nil)
-      end
-
       def case_sensitive_comparison(table, attribute, column, value)
         if value.nil?
           table[attribute].eq(value)
@@ -425,10 +430,6 @@ module ActiveRecord
         true
       end
       private :can_perform_case_insensitive_comparison_for?
-
-      def current_savepoint_name
-        current_transaction.savepoint_name
-      end
 
       # Check the connection back in to the connection pool
       def close

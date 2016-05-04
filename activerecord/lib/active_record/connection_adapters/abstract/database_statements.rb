@@ -66,7 +66,7 @@ module ActiveRecord
       # Returns an array of arrays containing the field values.
       # Order is the same as that returned by +columns+.
       def select_rows(sql, name = nil, binds = [])
-        raise NotImplementedError
+        exec_query(sql, name, binds).rows
       end
 
       # Executes the SQL statement in the context of this connection and returns
@@ -221,9 +221,7 @@ module ActiveRecord
       # * You are creating a nested (savepoint) transaction
       #
       # The mysql2 and postgresql adapters support setting the transaction
-      # isolation level. However, support is disabled for MySQL versions below 5,
-      # because they are affected by a bug[http://bugs.mysql.com/bug.php?id=39170]
-      # which means the isolation level gets persisted outside the transaction.
+      # isolation level.
       def transaction(requires_new: nil, isolation: nil, joinable: true)
         if !requires_new && current_transaction.joinable?
           if isolation
@@ -291,9 +289,6 @@ module ActiveRecord
 
       def rollback_to_savepoint(name = nil)
         exec_rollback_to_savepoint(name)
-      end
-
-      def exec_rollback_to_savepoint(name = nil) #:nodoc:
       end
 
       def default_sequence_name(table, column)

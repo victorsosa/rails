@@ -1,3 +1,25 @@
+## Rails 5.0.0.beta4 (April 27, 2016) ##
+
+*   PostgreSQL: Support Expression Indexes and Operator Classes.
+
+    Example:
+
+        create_table :users do |t|
+          t.string :name
+          t.index 'lower(name) varchar_pattern_ops'
+        end
+
+    Fixes #19090, #21765, #21819, #24359.
+
+    *Ryuta Kamizono*
+
+*   MySQL: Prepared statements support.
+
+    To enable, set `prepared_statements: true` in config/database.yml.
+    Requires mysql2 0.4.4+.
+
+    *Ryuta Kamizono*
+
 *   Schema dumper: Indexes are now included in the `create_table` block
     instead of listed afterward as separate `add_index` lines.
 
@@ -97,12 +119,11 @@
 
     *Jeremy Daer*
 
-*   Delegate `empty?`, `none?` and `one?`. Now they can be invoked as model class methods.
+*   Delegate `none?` and `one?`. Now they can be invoked as model class methods.
 
     Example:
 
         # When no record is found on the table
-        Topic.empty? # => true
         Topic.none?  # => true
 
         # When only one record is found on the table

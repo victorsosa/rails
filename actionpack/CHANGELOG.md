@@ -1,6 +1,13 @@
+## Rails 5.0.0.beta4 (April 27, 2016) ##
+
+*   Routing: Refactor `:action` default handling to ensure that path
+    parameters are not mutated during route generation.
+
+    *Andrew White*
+
 *   Add extension synonyms `yml` and `yaml` for MIME type `application/x-yaml`.
 
-   *bogdanvlviv*
+    *bogdanvlviv*
 
 *   Adds support for including ActionController::Cookies in API controllers.
     Previously, including the module would raise when trying to define
